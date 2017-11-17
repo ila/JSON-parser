@@ -36,7 +36,6 @@ json_array([Value | MoreElements]) :-
 %%%  json_member(Members)
 
 json_member([]) :- !.
-json_member(['']) :- !.
 json_member([PairString | MembersStrings]) :-
     atomics_to_string(Pair, " : ", PairString),
     json_pair(Pair),
