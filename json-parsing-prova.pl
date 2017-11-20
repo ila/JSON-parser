@@ -66,16 +66,18 @@ json_array([Value | MoreElements]) :-
 %%% json_member(Members)
 
 json_member(Member, (Attribute, Value) ) :-
+    string(Attribute),
     Member =.. [':', Attribute, Value],
     json_pair(Attribute, Value),
     !.
 
-json_member(Member, (Attribute, Value) ) :-
-     atom(Attribute),
-     atom_string(Attribute, StrAttribute),
-     Member =.. [':', StrAttribute, Value],
-     json_pair(StrAttribute, Value),
-     !.
+%% json_member(Member, (Attribute, Value) ) :-
+%%     atom(Attribute),
+%%     atom_string(Attribute, StrAttribute),
+%%     Member =.. [':', StrAttribute, Value],
+%%     json_pair(StrAttribute, Value),
+%%     !.
+
     
 %% json_member([PairString | MembersStrings]) :-
 %%     atomics_to_string(Pair, ":", PairString),
@@ -88,8 +90,7 @@ json_member(Member, (Attribute, Value) ) :-
 
 json_pair(Attribute, Value) :-
     string(Attribute),
-    is_value(Value).
-
+    is_value(Value), !.
 
 %%% json_value(Value)
 
