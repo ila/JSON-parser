@@ -1,7 +1,7 @@
 %%%% -*- Mode: Prolog -*-
 %%%% json-parsing.pl
 
-%%% aggiornato al 20/11/17
+%%% aggiornato al 21/11/17
 
 %%% json_parse(JSONString, Object).
 %%% vero se una JSONString (una stringa SWI Prolog o un atomo Prolog)
@@ -16,10 +16,17 @@ json_parse(JSONAtom, json_obj(ParsedObject)) :-
     !.
 
 
-%%%json_parse(JSONString, json_array(Elements)) :-
-%%%    split_string(JSONString, "", "'", Elements),
-%%%    json_array(Elements).
-
+%%% array
+json_parse(JSONAtom, json_array(ParsedList)) :-
+    atom_string(JSONAtom, JSONString),
+    term_string(JSON, JSONString),
+    JSON =.. [{}, JSONArray],
+    JSONArray =.. [':', Name, List],
+    is_value(Name),
+    %%% fallisce qui, se evito term string ecc fallisce l'univ
+    json_array(List, ParsedList),
+    !.
+  
 
 %%% json_get(JSON_obj, Fields, Result).
 %%% che risulta vero quando Result è recuperabile seguendo la catena
@@ -43,24 +50,32 @@ json_get(_JSON_obj, _Field, _Result).
 
 
 %%% json_obj(Object).
+
 json_obj([], []) :- !.
 
 json_obj([Member], [ParsedMember]) :-
     json_member(Member, ParsedMember),
     !.
 
+%%% per l'array
 json_obj(Object, [ParsedMember | ParsedMembers]) :-
     Object =.. [',', Member | MoreMembers],
     json_member(Member, ParsedMember),
     json_obj(MoreMembers, ParsedMembers),
     !.
 
-%%% json_array(Elements)
 
-json_array([]) :- !.
+%%% json_array(Elements)
+%%% I - ci ho provato, la logica era di fare overloading
+%%% del metodo obj in modo da separare nome dell'array
+%%% e lista e poi fare il controllo sulla lista
+%%% forse manca un caso baso
+
+json_array([], []) :- !.
+
 json_array([Value | MoreElements]) :-
-           is_value(Value),
-           json_array(MoreElements).
+    is_value(Value),
+    json_array(MoreElements).
 
 
 %%% json_member(Members)
