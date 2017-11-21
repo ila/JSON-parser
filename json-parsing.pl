@@ -17,14 +17,15 @@ json_parse(JSONAtom, json_obj(ParsedObject)) :-
 
 
 %%% array
-json_parse(JSONAtom, json_array(ParsedList)) :-
+%%% ParsedObjects può anche essere vuoto, rip
+%%% va malissimo in errore con più di un oggetto
+json_parse(JSONAtom, json_obj(ParsedObjects, Name, json_array(List))) :-
     atom_string(JSONAtom, JSONString),
     term_string(JSON, JSONString),
-    JSON =.. [{}, JSONArray],
-    JSONArray =.. [':', Name, List],
+    JSON =.. [{}, Object],
+    ParsedArray =.. [':', Name, List],
     is_value(Name),
-    %%% fallisce qui, se evito term string ecc fallisce l'univ
-    json_array(List, ParsedList),
+    json_array(List),
     !.
   
 
@@ -71,11 +72,12 @@ json_obj(Object, [ParsedMember | ParsedMembers]) :-
 %%% e lista e poi fare il controllo sulla lista
 %%% forse manca un caso baso
 
-json_array([], []) :- !.
+json_array([]) :- !.
 
 json_array([Value | MoreElements]) :-
     is_value(Value),
-    json_array(MoreElements).
+    json_array(MoreElements),
+    !.
 
 
 %%% json_member(Members)
@@ -107,6 +109,8 @@ json_pair(Attribute, Value) :-
 
 
 %%% json_value(Value)
+
+is_value([]) :- !.
 
 is_value(Value) :-
     string(Value), !.
