@@ -75,6 +75,12 @@ json_obj(Object, [ParsedMember | ParsedMembers]) :-
     json_obj(MoreMembers, ParsedMembers),
     !.
 
+json_obj([Object], [ParsedMember | ParsedMembers]) :-
+    Object =.. [',', Member | MoreMembers],
+    json_member(Member, ParsedMember),
+    json_obj(MoreMembers, ParsedMembers),
+    !.
+
 
 %%% json_array(Elements)
 
