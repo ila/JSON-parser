@@ -1,33 +1,40 @@
 %%%% -*- Mode: Prolog -*-
 %%%% json-parsing.pl
 
-%%% aggiornato al 21/11/17
+%%% aggiornato al 22/11/17
 
 %%% json_parse(JSONString, Object).
 %%% vero se una JSONString (una stringa SWI Prolog o un atomo Prolog)
 %%% può venire scorporata come stringa, numero, json_obj o json_array
 
+%%% object
+json_parse({}, json_obj([])) :- !.
 
 json_parse(JSONAtom, json_obj(ParsedObject)) :-
-    atom_string(JSONAtom, JSONString),
-    term_string(JSON, JSONString),
-    JSON =.. [{} , Object],
-    json_obj(Object, ParsedObject),
-    !.
-
-
-%%% array
-%%% ParsedObjects può anche essere vuoto, rip
-%%% va malissimo in errore con più di un oggetto
-json_parse(JSONAtom, json_obj(ParsedObjects, Name, json_array(List))) :-
+    atom(JSONAtom),
     atom_string(JSONAtom, JSONString),
     term_string(JSON, JSONString),
     JSON =.. [{}, Object],
-    ParsedArray =.. [':', Name, List],
-    is_value(Name),
-    json_array(List),
+    json_obj(Object, ParsedObject),
     !.
-  
+
+json_parse(JSON, json_obj(ParsedObject)) :-
+    JSON =.. [{}, Object],
+    json_obj(Object, ParsedObject),
+    !.
+
+%%% array
+json_parse(ArrayAtom, json_array(ParsedArray)) :-
+    atom(ArrayAtom),
+    atom_string(ArrayAtom, ArrayString),
+    term_string(Array, ArrayString),
+    json_array(Array, ParsedArray),
+    !.
+
+json_parse(Array, json_array(ParsedArray)) :-
+    json_array(Array, ParsedArray),
+    !.
+
 
 %%% json_get(JSON_obj, Fields, Result).
 %%% che risulta vero quando Result è recuperabile seguendo la catena
@@ -58,7 +65,10 @@ json_obj([Member], [ParsedMember]) :-
     json_member(Member, ParsedMember),
     !.
 
-%%% per l'array
+json_obj(Member, [ParsedMember]) :-
+    json_member(Member, ParsedMember),
+    !.
+
 json_obj(Object, [ParsedMember | ParsedMembers]) :-
     Object =.. [',', Member | MoreMembers],
     json_member(Member, ParsedMember),
@@ -67,59 +77,48 @@ json_obj(Object, [ParsedMember | ParsedMembers]) :-
 
 
 %%% json_array(Elements)
-%%% I - ci ho provato, la logica era di fare overloading
-%%% del metodo obj in modo da separare nome dell'array
-%%% e lista e poi fare il controllo sulla lista
-%%% forse manca un caso baso
 
-json_array([]) :- !.
+json_array([], []) :- !.
 
-json_array([Value | MoreElements]) :-
-    is_value(Value),
-    json_array(MoreElements),
+json_array([Value | MoreElements], [ParsedValue | ParsedElements]) :-
+    is_value(Value, ParsedValue),
+    json_array(MoreElements, ParsedElements),
     !.
 
 
 %%% json_member(Members)
 
-json_member(Member, (Attribute, Value) ) :-
+json_member(Member, (Attribute, ParsedValue) ) :-
     Member =.. [':', Attribute, Value],
-    json_pair(Attribute, Value),
+    json_pair(Attribute, Value, ParsedValue),
     !.
 
-json_member(Member, (Attribute, Value) ) :-
+json_member(Member, (Attribute, ParsedValue) ) :-
      atom(Attribute),
      atom_string(Attribute, StrAttribute),
      Member =.. [':', StrAttribute, Value],
-     json_pair(StrAttribute, Value),
+     json_pair(StrAttribute, Value, ParsedValue),
      !.
-    
-%% json_member([PairString | MembersStrings]) :-
-%%     atomics_to_string(Pair, ":", PairString),
-%%     json_pair(Pair),
-%%     json_member(MembersStrings).
 
 
 %%% json_pair(Pair)
-%%% questo e' un atomo
 
-json_pair(Attribute, Value) :-
+json_pair(Attribute, Value, ParsedValue) :-
     string(Attribute),
-    is_value(Value).
-
+    is_value(Value, ParsedValue).
 
 %%% json_value(Value)
 
-is_value([]) :- !.
+is_value([], []) :- !.
 
-is_value(Value) :-
+is_value(Value, Value) :-
     string(Value), !.
 
-is_value(Value) :-
+is_value(Value, Value) :-
     number(Value), !.
 
-is_value(Value) :-
-    json_obj(Value), !.
+is_value(Value, ParsedValue) :-
+    json_parse(Value, ParsedValue), !.
 
 
 %%% json_load(FileName, JSON)
@@ -136,8 +135,6 @@ json_load(FileName, JSON) :-
 
 %%% json_write(FineName, JSON)
 %%% scrive l'oggetto JSON sul file FileName
-%%% D - rimossi gli apici da open(Filename, ...) perchè altrimenti dava
-%%% singleton su FileName
 
 json_write(JSON, FileName) :-
     json_parse(JSON, O),
@@ -149,16 +146,3 @@ json_write(JSON, FileName) :-
 
 %%%% end of file -- json-parsing.pl
 
-%%% inizio test
-is_json_object(json_obj([Member | Members])) :-
-    is_json_member(json_member(Member)),
-    is_json_object(json_obj(Members)).
- 
-is_json_object(json_obj([])).
- 
-is_json_member(json_member(Pair)) :-
-    Pair =.. [_, Attribute, Value],
-    is_json_pair(json_pair(Attribute, Value)).
- 
-is_json_pair(json_pair(_Attribute, Value)) :-
-    is_value(Value).
