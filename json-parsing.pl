@@ -1,7 +1,7 @@
 %%%% -*- Mode: Prolog -*-
 %%%% json-parsing.pl
 
-%%% aggiornato al 22/11/17
+%%% aggiornato al 23/11/17
 
 %%% json_parse(JSONString, Object).
 %%% vero se una JSONString (una stringa SWI Prolog o un atomo Prolog)
@@ -39,23 +39,41 @@ json_parse(Array, json_array(ParsedArray)) :-
 %%% json_get(JSON_obj, Fields, Result).
 %%% che risulta vero quando Result è recuperabile seguendo la catena
 %%% di campi presenti in Fields (una lista) a partire da JSON_obj
-%%% D - ricorda di togliere gli underscore che ho messo perchè se no
-%%% rompeva coi singleton
 
+
+%%% caso in cui Fields è una lista
+
+%%% json_get(json_obj(ParsedObject), List, Result).
+    
+
+
+
+%%% caso in cui Fields è una stringa SWI Prolog
+
+json_get(json_obj(ParsedObject), String, Result) :-
+    string(String),
+    get_string(ParsedObject, String, Result),
+    !.
+
+    
 %%% caso in cui Fields è un numero
 
-json_get(JSON_obj, _Fields, _Result) :-
-    json_obj(JSON_obj).
+json_get(json_obj(ParsedArray), N, Result) :-
+    number(N).
+   
 
+get_string([(Item1, Item2) | _], String, Result) :-
+    String = Item1,
+    Result = Item2,
+    !.
 
+get_string(String, [(_) | Items], Result) :-
+    get_string(String, Items, Result),
+    !.
 
-%%% caso in cui Field è una stringa SWI Prolog
-%%% D - ricorda di togliere gli underscore che ho messo perchè se no
-%%% rompeva coi singleton
-
-json_get(_JSON_obj, _Field, _Result).
-
-
+get_string(_, [], _) :-
+    fail,
+    !.
 
 %%% json_obj(Object).
 
