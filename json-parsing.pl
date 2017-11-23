@@ -1,7 +1,7 @@
 %%%% -*- Mode: Prolog -*-
 %%%% json-parsing.pl
 
-%%% aggiornato al 23/11/17
+%%% aggiornato al 24/11/17
 
 %%% json_parse(JSONString, Object).
 %%% vero se una JSONString (una stringa SWI Prolog o un atomo Prolog)
@@ -43,18 +43,17 @@ json_parse(Array, json_array(ParsedArray)) :-
 
 %%% caso in cui Fields è una lista
 
-%%% json_get(json_obj(ParsedObject), List, Result).
+json_get(json_obj(ParsedObject), [List], Result) :-
+     get_string(ParsedObject, List, Result),
+     !.
     
-
-
 
 %%% caso in cui Fields è una stringa SWI Prolog
 
 json_get(json_obj(ParsedObject), String, Result) :-
-    string(String),
+    %%% string(String),
     get_string(ParsedObject, String, Result),
     !.
-
     
 %%% caso in cui Fields è un numero
 
@@ -117,6 +116,7 @@ json_member(Member, (Attribute, ParsedValue) ) :-
     json_pair(Attribute, Value, ParsedValue),
     !.
 
+
 json_member(Member, (Attribute, ParsedValue) ) :-
      atom(Attribute),
      atom_string(Attribute, StrAttribute),
@@ -129,7 +129,14 @@ json_member(Member, (Attribute, ParsedValue) ) :-
 
 json_pair(Attribute, Value, ParsedValue) :-
     string(Attribute),
-    is_value(Value, ParsedValue).
+    is_value(Value, ParsedValue),
+    !.
+
+%%% per gli atomi -Ila
+json_pair(Attribute, Value, ParsedValue) :-
+    atom(Attribute),
+    is_value(Value, ParsedValue),
+    !.
 
 %%% json_value(Value)
 
@@ -140,6 +147,10 @@ is_value(Value, Value) :-
 
 is_value(Value, Value) :-
     number(Value), !.
+
+%%% per gli atomi -Ila
+is_value(Value, Value) :-
+    atom(Value), !.
 
 is_value(Value, ParsedValue) :-
     json_parse(Value, ParsedValue), !.
