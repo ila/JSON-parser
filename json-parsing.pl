@@ -1,7 +1,7 @@
 %%%% -*- Mode: Prolog -*-
 %%%% json-parsing.pl
 
-%%% aggiornato al 24/11/17
+%%% aggiornato al 26/11/17
 
 %%% json_parse(JSONString, Object).
 %%% vero se una JSONString (una stringa SWI Prolog o un atomo Prolog)
@@ -43,35 +43,59 @@ json_parse(Array, json_array(ParsedArray)) :-
 
 %%% caso in cui Fields è una lista
 
-json_get(json_obj(ParsedObject), [List], Result) :-
-     get_string(ParsedObject, List, Result),
-     !.
-    
+json_get(
+
+json_get(PartialResult, [], PartialResult) :- !.
+
+json_get(json_obj(ParsedObject), [Field | Fields], Result) :-
+    json_get(json_obj(ParsedObject), Field, PartialResult),
+    json_get(PartialResult, Fields, Result),
+    !.
+
+json_get(json_array(ParsedArray), [Field | Fields], Result) :-
+    json_get(json_array(ParsedArray), Field, PartialResult),
+    json_get(PartialResult, Fields, Result),
+    !.
 
 %%% caso in cui Fields è una stringa SWI Prolog
 
 json_get(json_obj(ParsedObject), String, Result) :-
-    %%% string(String),
+    string(String),
     get_string(ParsedObject, String, Result),
     !.
-    
+
 %%% caso in cui Fields è un numero
 
-json_get(json_obj(ParsedArray), N, Result) :-
-    number(N).
-   
+json_get(json_array(ParsedArray), N, Result) :-
+    number(N),
+    get_index(ParsedArray, N, Result).
+
+%%% ricerca di un attributo fra gli oggetti
+get_string(_, [], _) :-
+    fail,
+    !.
 
 get_string([(Item1, Item2) | _], String, Result) :-
     String = Item1,
     Result = Item2,
     !.
 
-get_string(String, [(_) | Items], Result) :-
-    get_string(String, Items, Result),
+get_string([(_) | Items], String, Result) :-
+    get_string(Items, String, Result),
     !.
 
-get_string(_, [], _) :-
+%%% ricerca di un indice in un array
+get_index([Item | _], 0, Item) :-
+    !.
+
+get_index([], _, _) :-
     fail,
+    !.
+
+get_index([_ | Items], N, Result) :-
+    N > 0,
+    P is N-1,
+    get_index(Items, P, Result),
     !.
 
 %%% json_obj(Object).
@@ -168,16 +192,51 @@ json_load(FileName, JSON) :-
     close(File).
 
 
-%%% json_write(FineName, JSON)
+%%% json_write
 %%% scrive l'oggetto JSON sul file FileName
+%%% JSON è la stringa prolog
 
 json_write(JSON, FileName) :-
-    json_parse(JSON, O),
-    atom_string(O, String),
+    json_revert(JSON, JSONString),
     open(FileName, write, File),
-    write(File, String),
+    write(File, JSONString),
     nl(File),
     close(File).
+
+%%% questo funziona
+json_revert(json_array(O), JSONString) :-
+    json_parse(JSONString, json_array(O)),
+    !.
+
+%%% passa da json_obj/array a sintassi JSON
+
+json_revert(json_obj([]), {}) :- !.
+
+json_revert(json_obj(O), JSONString) :-
+    json_revert(O, Pairs),
+    JSONString =.. [{}, Pairs],
+    !.
+
+json_revert([], []) :- !.
+
+json_revert([], [ParsedObjects]) :-
+    JSONString =.. [{}, ParsedObjects],
+    term_string
+    json_revert([], JSONString),
+    !.
+
+json_revert(([(O1, json_array(O2)) | Objects]), [Pair | Pairs]) :-
+    %%% fallisce
+    json_parse(Array, json_array(O2)),
+    Pair =.. [':', O1, Array],
+    json_revert(Objects, Pairs),
+    !.
+
+json_revert(([(O1, O2) | Objects]), [Pair | Pairs]) :-
+    Pair =.. [':', O1, O2],
+    json_revert(Objects, Pairs),
+    !.
+
 
 %%%% end of file -- json-parsing.pl
 
