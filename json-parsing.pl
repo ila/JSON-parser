@@ -191,17 +191,31 @@ json_load(FileName, JSON) :-
     json_parse(O, JSON),
     close(File).
 
+%%% bug: nel file non inserisce gli apici (write)
+%%% e si rompe tutto ma il resto funziona
 
 %%% json_write
 %%% scrive l'oggetto JSON sul file FileName
 %%% JSON è la stringa prolog
 
 json_write(JSON, FileName) :-
+    json_revert(JSON, Term),
+    json_fix(Term, JSONAtom),
+    open(FileName, write, File),
+    write(File, JSONAtom),
+    nl(File),
+    close(File),
+    !.
+
+
+%%% se fallisce il fix (non ci sono {} quindi array)
+json_write(JSON, FileName) :-
     json_revert(JSON, JSONString),
     open(FileName, write, File),
     write(File, JSONString),
     nl(File),
-    close(File).
+    close(File),
+    !.
 
 %%% questo funziona
 json_revert(json_array(O), JSONString) :-
@@ -225,7 +239,6 @@ json_revert([], [ParsedObjects]) :-
     !.
 
 json_revert(([(O1, json_array(O2)) | Objects]), [Pair | Pairs]) :-
-    %%% fallisce
     json_parse(Array, json_array(O2)),
     Pair =.. [':', O1, Array],
     json_revert(Objects, Pairs),
@@ -234,6 +247,35 @@ json_revert(([(O1, json_array(O2)) | Objects]), [Pair | Pairs]) :-
 json_revert(([(O1, O2) | Objects]), [Pair | Pairs]) :-
     Pair =.. [':', O1, O2],
     json_revert(Objects, Pairs),
+    !.
+
+json_fix(Term, JSONAtom) :-
+    term_string(Term, String),
+    string_chars(String, Chars),
+    remove_parens(Chars, ParsedChars),
+    string_chars(JSONString, ParsedChars),
+    atom_string(JSONAtom, JSONString),
+    !.
+
+%%% probabilmente inutile
+remove_parens([], []) :- !.
+
+remove_parens(['{', '[' | SomeChars], ['{' | OtherChars]) :-
+    remove_parens(SomeChars, OtherChars),
+    !.
+
+remove_parens([']', '}'], ['}']) :- !.
+
+remove_parens([':' | SomeChars], [' ', ':', ' ' | OtherChars]) :-
+    remove_parens(SomeChars, OtherChars),
+    !.
+
+remove_parens([',' | SomeChars], [',', ' ' | OtherChars]) :-
+    remove_parens(SomeChars, OtherChars),
+    !.
+
+remove_parens([Char | SomeChars], [Char | OtherChars]) :-
+    remove_parens(SomeChars, OtherChars),
     !.
 
 
