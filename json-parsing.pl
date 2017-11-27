@@ -43,8 +43,6 @@ json_parse(Array, json_array(ParsedArray)) :-
 
 %%% caso in cui Fields è una lista
 
-json_get(
-
 json_get(PartialResult, [], PartialResult) :- !.
 
 json_get(json_obj(ParsedObject), [Field | Fields], Result) :-
@@ -136,31 +134,31 @@ json_array([Value | MoreElements], [ParsedValue | ParsedElements]) :-
 %%% json_member(Members)
 
 json_member(Member, (Attribute, ParsedValue) ) :-
-    Member =.. [':', Attribute, Value],
-    json_pair(Attribute, Value, ParsedValue),
-    !.
-
-
-json_member(Member, (Attribute, ParsedValue) ) :-
      atom(Attribute),
      atom_string(Attribute, StrAttribute),
      Member =.. [':', StrAttribute, Value],
      json_pair(StrAttribute, Value, ParsedValue),
      !.
 
+json_member(Member, (ParsedAttribute, ParsedValue)) :-
+    Member =.. [':', Attribute, Value],
+    json_pair(Attribute, Value, ParsedAttribute, ParsedValue),
+    !.
 
 %%% json_pair(Pair)
 
-json_pair(Attribute, Value, ParsedValue) :-
+json_pair(Attribute, Value, Attribute, ParsedValue) :-
     string(Attribute),
     is_value(Value, ParsedValue),
     !.
 
 %%% per gli atomi -Ila
-json_pair(Attribute, Value, ParsedValue) :-
+json_pair(Attribute, Value, ParsedAttribute, ParsedValue) :-
     atom(Attribute),
+    atom_string(Attribute, ParsedAttribute),
     is_value(Value, ParsedValue),
     !.
+    
 
 %%% json_value(Value)
 
@@ -173,8 +171,10 @@ is_value(Value, Value) :-
     number(Value), !.
 
 %%% per gli atomi -Ila
-is_value(Value, Value) :-
-    atom(Value), !.
+is_value(Value, Value1) :-
+    atom(Value),
+    atom_string(Value, Value1),
+    !.
 
 is_value(Value, ParsedValue) :-
     json_parse(Value, ParsedValue), !.
@@ -221,7 +221,6 @@ json_revert([], []) :- !.
 
 json_revert([], [ParsedObjects]) :-
     JSONString =.. [{}, ParsedObjects],
-    term_string
     json_revert([], JSONString),
     !.
 
