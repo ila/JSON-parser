@@ -13,11 +13,10 @@ json_parse({}, json_obj([])) :- !.
 
 json_parse(JSONAtom, json_obj(ParsedObject)) :-
     atom(JSONAtom),
-    atom_string(JSONAtom, JSONString),
-    %string_concat("{", Str1, JSONString),
-    %string_concat(ObjectS, "}", Str1),
-    %term_string(Object, ObjectS),*
-    term_string(JSON, JSONString),
+    %string_chars(JSONString, Chars),
+    %fix_string(Chars, FixedChars),
+    %string_chars(FixedChars, RealJSONString),
+    term_to_atom(JSON, JSONAtom),
     JSON =.. [{}, Object],
     json_obj([Object], ParsedObject),
     !.
@@ -26,6 +25,7 @@ json_parse(JSON, json_obj(ParsedObject)) :-
     JSON =.. [{}, Object],
     json_obj([Object], ParsedObject),
     !.
+
 
 %%% array
 
@@ -39,6 +39,41 @@ json_parse(ArrayAtom, json_array(ParsedArray)) :-
 json_parse(Array, json_array(ParsedArray)) :-
     json_array(Array, ParsedArray),
     !.
+
+%%% rimuove gli spazi
+
+%% test(String, X) :-
+%%     string_chars(String, Chars),
+%%     fix_string(Chars, FixedChars),
+%%     string_chars(X, FixedChars),
+%%     !.
+
+%% fix_string([' ' | Stuff], OtherStuff) :-
+%%     fix_string(Stuff, OtherStuff),
+%%     !.
+
+%% fix_string(['{', '\'' | Stuff], ['{', '"' | OtherStuff]) :-
+%%     fix_string(Stuff, OtherStuff),
+%%     !.
+
+%% fix_string(['\'', '}' | Stuff], ['"', '}' | OtherStuff]) :-
+%%     fix_string(Stuff, OtherStuff),
+%%     !.
+
+%% fix_string(['\'', ':' | Stuff], ['"', ':' | OtherStuff]) :-
+%%     fix_string(Stuff, OtherStuff),
+%%     !.
+
+%% fix_string([':', '\'' | Stuff], [':', '"' | OtherStuff]) :-
+%%     fix_string(Stuff, OtherStuff),
+%%     !.
+
+%% fix_string([Char | Stuff], [Char | OtherStuff]) :-
+%%     fix_string(Stuff, OtherStuff),
+%%     !.
+
+%% fix_string([], []) :- !.
+
 
 %%% json_obj(Object).
 
@@ -79,6 +114,7 @@ json_pair(Attribute, Value, Attribute, ParsedValue) :-
     !.
 
 json_pair(Attribute, Value, ParsedAttribute, ParsedValue) :-
+    %%% questo
     atom(Attribute),
     atom_string(Attribute, ParsedAttribute),
     is_value(Value, ParsedValue),
