@@ -1,7 +1,7 @@
 %%%% -*- Mode: Prolog -*-
 %%%% json-parsing.pl
 
-%%% aggiornato al 28/11/17
+%%% aggiornato al 29/11/17
 
 %%% json_parse(JSONString, Object).
 %%% vero se una JSONString (una stringa SWI Prolog o un atomo Prolog)
@@ -13,10 +13,11 @@ json_parse({}, json_obj([])) :- !.
 
 json_parse(JSONAtom, json_obj(ParsedObject)) :-
     atom(JSONAtom),
-    %string_chars(JSONString, Chars),
-    %fix_string(Chars, FixedChars),
-    %string_chars(FixedChars, RealJSONString),
-    term_to_atom(JSON, JSONAtom),
+    atom_string(JSONAtom, JSONString),
+    string_chars(JSONString, Chars),
+    fix_string(Chars, FixedChars),
+    string_chars(RealJSONString, FixedChars),
+    term_string(JSON, RealJSONString),
     JSON =.. [{}, Object],
     json_obj([Object], ParsedObject),
     !.
@@ -39,40 +40,6 @@ json_parse(ArrayAtom, json_array(ParsedArray)) :-
 json_parse(Array, json_array(ParsedArray)) :-
     json_array(Array, ParsedArray),
     !.
-
-%%% rimuove gli spazi
-
-%% test(String, X) :-
-%%     string_chars(String, Chars),
-%%     fix_string(Chars, FixedChars),
-%%     string_chars(X, FixedChars),
-%%     !.
-
-%% fix_string([' ' | Stuff], OtherStuff) :-
-%%     fix_string(Stuff, OtherStuff),
-%%     !.
-
-%% fix_string(['{', '\'' | Stuff], ['{', '"' | OtherStuff]) :-
-%%     fix_string(Stuff, OtherStuff),
-%%     !.
-
-%% fix_string(['\'', '}' | Stuff], ['"', '}' | OtherStuff]) :-
-%%     fix_string(Stuff, OtherStuff),
-%%     !.
-
-%% fix_string(['\'', ':' | Stuff], ['"', ':' | OtherStuff]) :-
-%%     fix_string(Stuff, OtherStuff),
-%%     !.
-
-%% fix_string([':', '\'' | Stuff], [':', '"' | OtherStuff]) :-
-%%     fix_string(Stuff, OtherStuff),
-%%     !.
-
-%% fix_string([Char | Stuff], [Char | OtherStuff]) :-
-%%     fix_string(Stuff, OtherStuff),
-%%     !.
-
-%% fix_string([], []) :- !.
 
 
 %%% json_obj(Object).
@@ -131,11 +98,6 @@ is_value(Value, Value) :-
 is_value(Value, Value) :-
     number(Value), !.
 
-is_value(Value, Value1) :-
-    atom(Value),
-    atom_string(Value, Value1),
-    !.
-
 is_value(Value, ParsedValue) :-
     json_parse(Value, ParsedValue), !.
 
@@ -169,7 +131,8 @@ json_get(json_obj(ParsedObject), String, Result) :-
 
 json_get(json_array(ParsedArray), N, Result) :-
     number(N),
-    get_index(ParsedArray, N, Result).
+    get_index(ParsedArray, N, Result),
+    !.
 
 
 %%% ricerca di un attributo fra gli oggetti
@@ -236,7 +199,40 @@ json_write(JSON, FileName) :-
     !.
 
 
-%%% trasforma in sintassi JSON
+%%% rimuove gli apici singoli (chiamato nel parse)
+
+fix_string(['{', '\'' | Cs], ['{', '"' | OtherCs]) :-
+    fix_string(Cs, OtherCs),
+    !.
+
+fix_string(['\'', '}' | Cs], ['"', '}' | OtherCs]) :-
+    fix_string(Cs, OtherCs),
+    !.
+
+fix_string(['\'', ':', '\'' | Cs], ['"', ':', '"' | OtherCs]) :-
+    fix_string(Cs, OtherCs),
+    !.
+
+fix_string(['\'', ' ', ':', ' ', '\'' | Cs], ['"', ':', '"' | OtherCs]) :-
+    fix_string(Cs, OtherCs),
+    !.
+
+fix_string(['\'', ':', ' ', '\'' | Cs], ['"', ':', '"' | OtherCs]) :-
+    fix_string(Cs, OtherCs),
+    !.
+
+fix_string(['\'', ' ', ':', '\'' | Cs], ['"', ':', '"' | OtherCs]) :-
+    fix_string(Cs, OtherCs),
+    !.
+
+fix_string([Char | Cs], [Char | OtherCs]) :-
+    fix_string(Cs, OtherCs),
+    !.
+
+fix_string([], []) :- !.
+
+
+%%% trasforma in sintassi JSON (chiamato nel write)
 
 json_revert(json_array(O), JSONString) :-
     json_parse(JSONString, json_array(O)),
