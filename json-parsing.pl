@@ -17,7 +17,7 @@ json_parse(JSONAtom, json_obj(ParsedObject)) :-
     string_chars(JSONString, Chars),
     fix_string(Chars, FixedChars),
     string_chars(RealJSONString, FixedChars),
-    term_string(JSON, RealJSONString),
+    catch(term_string(JSON, RealJSONString), _, false),
     JSON =.. [{}, Object],
     json_obj([Object], ParsedObject),
     !.
@@ -33,7 +33,7 @@ json_parse(JSON, json_obj(ParsedObject)) :-
 json_parse(ArrayAtom, json_array(ParsedArray)) :-
     atom(ArrayAtom),
     atom_string(ArrayAtom, ArrayString),
-    term_string(Array, ArrayString),
+    catch(term_string(Array, ArrayString), _, false),
     json_array(Array, ParsedArray),
     !.
 
@@ -170,10 +170,10 @@ get_index([_ | Items], N, Result) :-
 %%% ha successo se riesce a costruire un oggetto JSON
 
 json_load(FileName, JSON) :-
-    open(FileName, read, File),
+    catch(open(FileName, read, File), _, false),
     read_string(File, _, O),
     atom_string(Atom, O),
-    json_parse(Atom, JSON),
+    catch(json_parse(Atom, JSON), _, false),
     close(File).
 
 
@@ -182,6 +182,7 @@ json_load(FileName, JSON) :-
 %%% JSON è la stringa prolog
 
 json_write(JSON, FileName) :-
+    atom(FileName),
     json_revert(JSON, Term),
     json_fix(Term, JSONAtom),
     open(FileName, write, File),
@@ -192,6 +193,7 @@ json_write(JSON, FileName) :-
 %%% se fallisce il fix (non ci sono {} quindi array)
 
 json_write(JSON, FileName) :-
+    atom(FileName),
     json_revert(JSON, JSONString),
     open(FileName, write, File),
     write(File, JSONString),
