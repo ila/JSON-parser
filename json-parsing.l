@@ -1,13 +1,21 @@
+;; Battiston Ilaria 816339
+;; Di Gennaro Luca 820612
+
 ;; json-parsing.l
 
-;; aggiornato al 3/12
-;; char "abc" 0 --> a potrebbe servire
-
-;; DOBBIAMO AGGIUNGERE UN EXCEPTION HANDLER IN PROLOG
+;; aggiornato al 5/12/17
 
 (defun json-parse (JSONstring object)
   (if (not (stringp JSONstring) (error "Not a string!"))
       json-obj (???)))
+
+;; funziona
+(defun string-to-list (JSONstring)
+  (if (= (length JSONstring) 0)
+      nil
+    (cons (char JSONstring 0) (string-to-list (subseq JSONstring 1)))))
+
+
 	
 
 (defun is-value (value)

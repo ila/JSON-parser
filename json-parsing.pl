@@ -1,7 +1,12 @@
+%%%% Battiston Ilaria 816339
+%%%% Di Gennaro Luca 820612
+
 %%%% -*- Mode: Prolog -*-
 %%%% json-parsing.pl
 
-%%% aggiornato al 29/11/17
+%%% NOTA: PARSE CON {} FUNZIONA, NON DOVREBBE 
+
+%%% aggiornato al 5/12/17
 
 %%% json_parse(JSONString, Object).
 %%% vero se una JSONString (una stringa SWI Prolog o un atomo Prolog)
@@ -77,13 +82,6 @@ json_member(Member, (ParsedAttribute, ParsedValue)) :-
 
 json_pair(Attribute, Value, Attribute, ParsedValue) :-
     string(Attribute),
-    is_value(Value, ParsedValue),
-    !.
-
-json_pair(Attribute, Value, ParsedAttribute, ParsedValue) :-
-    %%% questo
-    atom(Attribute),
-    atom_string(Attribute, ParsedAttribute),
     is_value(Value, ParsedValue),
     !.
 
@@ -203,27 +201,7 @@ json_write(JSON, FileName) :-
 
 %%% rimuove gli apici singoli (chiamato nel parse)
 
-fix_string(['{', '\'' | Cs], ['{', '"' | OtherCs]) :-
-    fix_string(Cs, OtherCs),
-    !.
-
-fix_string(['\'', '}' | Cs], ['"', '}' | OtherCs]) :-
-    fix_string(Cs, OtherCs),
-    !.
-
-fix_string(['\'', ':', '\'' | Cs], ['"', ':', '"' | OtherCs]) :-
-    fix_string(Cs, OtherCs),
-    !.
-
-fix_string(['\'', ' ', ':', ' ', '\'' | Cs], ['"', ':', '"' | OtherCs]) :-
-    fix_string(Cs, OtherCs),
-    !.
-
-fix_string(['\'', ':', ' ', '\'' | Cs], ['"', ':', '"' | OtherCs]) :-
-    fix_string(Cs, OtherCs),
-    !.
-
-fix_string(['\'', ' ', ':', '\'' | Cs], ['"', ':', '"' | OtherCs]) :-
+fix_string(['\'' | Cs], ['"' | OtherCs]) :-
     fix_string(Cs, OtherCs),
     !.
 
