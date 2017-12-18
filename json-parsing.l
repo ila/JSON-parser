@@ -19,44 +19,52 @@
 ;; format per levare il maiuscolo non serve a una sega
 
 ;; modifiche: fatto array (manca il caso obj) vanno aggiunti po' di casi di errori
-;; tipo se scrivo greawc4w NON Ã¨ un oggetto jason e deve capirlo (senza apici, ...)
+;; tipo se scrivo greawc4w NON è un oggetto jason e deve capirlo (senza apici, ...)
 
 
 (defun json-parse (JSONString)
-  (cond ((not (stringp JSONString)) (error "Not a string!")) ; se non Ã¨ una stringa errore
+  (cond ((not (stringp JSONString)) (error "Not a string!")) ; se non è una stringa errore
         ((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
          (cons
-          'json-obj ;; l'ho messo come stringa perchÃ¨ non so come cazzo farlo scrivere altrimenti
-          (parse-members (clean-charlist (string-to-list (string-trim "{}" JSONString))) nil 0))) 
+          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
+          (parse-members (clean-charlist (string-to-list (string-trim "{}" JSONString))) nil))) 
         ((and (eq (char JSONString 0) #\[) (eq (char JSONString (- (length JSONString) 1)) #\])) 
          (cons
-          'json-obj ;; l'ho messo come stringa perchÃ¨ non so come cazzo farlo scrivere altrimenti
+          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
           (parse-array (clean-charlist (string-to-list (string-trim "[]" JSONString))) nil 0))) 
-        (T (error "Syntax error! ")))) ; se non inizia per { e finisce per } errore o non Ã¨ array
+        (T (error "Syntax error! ")))) ; se non inizia per { e finisce per } errore o non è array
   
 
-;; funziona ma non funziona con array negli oggetti perchÃ¨ " non sono 4
-;; ho provato a spostare la roba tra [] in secchiellino e chiamare parse array su quello,
+;; funziona ma non funziona con array negli oggetti perchè " non sono 4
+;; ho provato a spostare la roba tra [] in accumulator e chiamare parse array su quello, 
 ;; ma 4 some reasons non va
-(defun parse-members (charlist secchiellino counter)
-  (cond ((= counter 5) (error "Format not supported!"))
-	((null charlist) (list secchiellino))
-        ((and
-	  (eq (car charlist) #\,)
-	  (= counter 4))
-	 (cons secchiellino (parse-members (cdr charlist) nil 0)))
-        ((eq (car charlist) #\")
-	 (parse-members (cdr charlist) (cons-end (car charlist) secchiellino) (+ 1 counter)))
+
+#|(defun parse-members (tokenlist accumulator)
+  (cond ((null tokenlist) (list accumulator))
+        ((eq (car tokenlist) #\,)
+	 (cons accumulator (parse-members (cdr tokenlist) nil)))
 	;((and
-	  ;(eq (car charlist) #\[)
+	  ;(eq (car tokenlist) #\[)
 	  ;(= counter 2))
-	 ;(parse-members (cdr charlist) (cons-end (second charlist) secchiellino) counter))
-	;((eq (car charlist) #\])
-	 ;(cons (parse-array secchiellino () 0) (parse-members (cdr charlist) nil 0)))
+	 ;(parse-members (cdr tokenlist) (cons-end (second tokenlist) accumulator) counter))
+	;((eq (car tokenlist) #\])
+	 ;(cons (parse-array accumulator () 0) (parse-members (cdr tokenlist) nil 0)))
         (T
-	 (parse-members (cdr charlist) (cons-end (car charlist) secchiellino) counter))))
+	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator))))) |#
 
+;;prova parse-members ricorsivo
+(defun parse-members (tokenlist accumulator)
+  (cond ((null tokenlist) (list (parse-pair accumulator)))
+        ((eq (car tokenlist) #\,)
+	 (cons (parse-pair accumulator) (parse-members (cdr tokenlist) nil)))
+        (T
+	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator)))))
 
+;;funziona ma dobbiamo prima checkare i value/attribute prima di ritornarli
+(defun parse-pair (tokenlist)
+  (cond ((not (eq (cadr tokenlist) #\:)) (error "Syntax error")) 
+        (T (list (car tokenlist) (car (cdr (cdr tokenlist)))))))
+	 
 ;; bugs: stampa un nil di troppo alla fine, not sure a cosa servano secchiellino e counter
 ;; ma funziona con gli array uno dentro l'altro! :D
 (defun parse-array (array secchiellino counter)
@@ -87,9 +95,20 @@
 
 
 (defun clean-charlist (charlist) 
-  (substitute #\" #\' (remove #\Space charlist)))
+  (compact-substrings (substitute #\" #\' (remove #\Space charlist)) nil 0))
 
-
+;;(" a b c " : " c d e " , " f " : " g h ") --> ("abc" : "cde" , "f" : "gh")
+(defun compact-substrings(charlist accumulator counter)
+  (cond ((null charlist) (cons (list-to-string accumulator) nil))
+        ((eq (car charlist) #\")
+	 (compact-substrings (cdr charlist) accumulator (+ 1 counter)))
+        ((= counter 0) (cons (car charlist) (compact-substrings (cdr charlist) accumulator counter)))
+        ((= counter 1) (compact-substrings (cdr charlist) (cons-end (car charlist) accumulator) counter))
+        ((= counter 2) (cons (list-to-string accumulator) (compact-substrings charlist nil 0)))        
+        ((eq (car charlist) #\")
+	 (compact-substrings (cdr charlist) (cons-end (car charlist) accumulator) (+ 1 counter)))
+        (T
+	 (error "err"))))
 
 ;(defun json-obj (JSONlist)
  ; ...
