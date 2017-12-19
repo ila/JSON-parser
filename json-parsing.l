@@ -3,7 +3,7 @@
 
 ;;;; json-parsing.l
 
-;; aggiornato al 17/12/17
+;; aggiornato al 19/12/17
 
 ;; defparameter charlist di prova
 ;; (defparameter x '(#\" #\a #\b #\c #\" #\: #\" #\c #\d #\e #\" #\, #\" #\f #\" #\: #\" #\g #\"))
@@ -53,17 +53,13 @@
 ;;funziona ma dobbiamo prima checkare i value/attribute prima di ritornarli
 (defun parse-pair (tokenlist)
   (cond ((not (stringp (car tokenlist))) (error "Attribute not a string!"))
-   ((not (eq (cadr tokenlist) #\:)) (error "Syntax error")) 
+	((not (eq (cadr tokenlist) #\:)) (error "Syntax error")) 
         (T (list (car tokenlist) (is-value (car (cdr (cdr tokenlist))))))))
 
 
 ;; value (da testare)
 (defun is-value (value)
-  (cond ((not (nil (parse-integer stringa :junk-allowed t)) value))
-	((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
-         (cons
-          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
-          (parse-members (clean-charlist (string-to-list (string-trim "{}" JSONString))) nil)))
+  (cond ((not (null (parse-integer value :junk-allowed t))) value)
 	((stringp value) value)
 	(T (error "Not a valid value!"))))
   
