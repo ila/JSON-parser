@@ -39,18 +39,6 @@
 ;; ho provato a spostare la roba tra [] in accumulator e chiamare parse array su quello, 
 ;; ma 4 some reasons non va
 
-#|(defun parse-members (tokenlist accumulator)
-  (cond ((null tokenlist) (list accumulator))
-        ((eq (car tokenlist) #\,)
-	 (cons accumulator (parse-members (cdr tokenlist) nil)))
-	;((and
-	  ;(eq (car tokenlist) #\[)
-	  ;(= counter 2))
-	 ;(parse-members (cdr tokenlist) (cons-end (second tokenlist) accumulator) counter))
-	;((eq (car tokenlist) #\])
-	 ;(cons (parse-array accumulator () 0) (parse-members (cdr tokenlist) nil 0)))
-        (T
-	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator))))) |#
 
 ;;prova parse-members ricorsivo
 (defun parse-members (tokenlist accumulator)
@@ -60,11 +48,29 @@
         (T
 	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator)))))
 
+	 
+
 ;;funziona ma dobbiamo prima checkare i value/attribute prima di ritornarli
 (defun parse-pair (tokenlist)
-  (cond ((not (eq (cadr tokenlist) #\:)) (error "Syntax error")) 
-        (T (list (car tokenlist) (car (cdr (cdr tokenlist)))))))
-	 
+  (cond ((not (stringp (car tokenlist))) (error "Attribute not a string!"))
+   ((not (eq (cadr tokenlist) #\:)) (error "Syntax error")) 
+        (T (list (car tokenlist) (is-value (car (cdr (cdr tokenlist))))))))
+
+
+;; value (da testare)
+(defun is-value (value)
+  (cond ((not (nil (parse-integer stringa :junk-allowed t)) value))
+	((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
+         (cons
+          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
+          (parse-members (clean-charlist (string-to-list (string-trim "{}" JSONString))) nil)))
+	((stringp value) value)
+	(T (error "Not a valid value!"))))
+  
+;; (parse-integer stringa :junk-allowed t)
+;; per passare da "123" a 123
+;; da' nil quando passo stringhe non numeriche
+
 ;; bugs: stampa un nil di troppo alla fine, not sure a cosa servano secchiellino e counter
 ;; ma funziona con gli array uno dentro l'altro! :D
 (defun parse-array (array secchiellino counter)
@@ -98,7 +104,7 @@
   (compact-substrings (substitute #\" #\' (remove #\Space charlist)) nil 0))
 
 ;;(" a b c " : " c d e " , " f " : " g h ") --> ("abc" : "cde" , "f" : "gh")
-(defun compact-substrings(charlist accumulator counter)
+(defun compact-substrings (charlist accumulator counter)
   (cond ((null charlist) (cons (list-to-string accumulator) nil))
         ((eq (car charlist) #\")
 	 (compact-substrings (cdr charlist) accumulator (+ 1 counter)))
@@ -110,16 +116,6 @@
         (T
 	 (error "err"))))
 
-;(defun json-obj (JSONlist)
- ; ...
-  ;(append (list ("json-obj")) '(parsedlist)))
-
-
-(defun is-value (value)
-  (cond ((numberp value) T)
-	((stringp value) T)
-	;; ((json-obj value) T)
-	(T (error "Not a JSON value!"))))
 
 ;; cons-end 
 (defun cons-end (element l)

@@ -27,7 +27,7 @@
         ((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
          (cons
           'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
-          (parse-members (clean-charlist (string-to-list (string-trim "{}" JSONString))) nil 0))) 
+          (parse-members (clean-charlist (string-to-list (string-trim "{}" JSONString))) nil))) 
         ((and (eq (char JSONString 0) #\[) (eq (char JSONString (- (length JSONString) 1)) #\])) 
          (cons
           'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
@@ -38,7 +38,8 @@
 ;; funziona ma non funziona con array negli oggetti perchè " non sono 4
 ;; ho provato a spostare la roba tra [] in accumulator e chiamare parse array su quello, 
 ;; ma 4 some reasons non va
-(defun parse-members (tokenlist accumulator)
+
+#|(defun parse-members (tokenlist accumulator)
   (cond ((null tokenlist) (list accumulator))
         ((eq (car tokenlist) #\,)
 	 (cons accumulator (parse-members (cdr tokenlist) nil)))
@@ -49,11 +50,20 @@
 	;((eq (car tokenlist) #\])
 	 ;(cons (parse-array accumulator () 0) (parse-members (cdr tokenlist) nil 0)))
         (T
-	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator) counter))))
+	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator))))) |#
 
-;;WIP
-(defun parse-pair (tokenlist temp counter)
-  ())
+;;prova parse-members ricorsivo
+(defun parse-members (tokenlist accumulator)
+  (cond ((null tokenlist) (list (parse-pair accumulator)))
+        ((eq (car tokenlist) #\,)
+	 (cons (parse-pair accumulator) (parse-members (cdr tokenlist) nil)))
+        (T
+	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator)))))
+
+;;funziona ma dobbiamo prima checkare i value/attribute prima di ritornarli
+(defun parse-pair (tokenlist)
+  (cond ((not (eq (cadr tokenlist) #\:)) (error "Syntax error")) 
+        (T (list (car tokenlist) (car (cdr (cdr tokenlist)))))))
 	 
 ;; bugs: stampa un nil di troppo alla fine, not sure a cosa servano secchiellino e counter
 ;; ma funziona con gli array uno dentro l'altro! :D
@@ -85,7 +95,7 @@
 
 
 (defun clean-charlist (charlist) 
-  (substitute #\" #\' (remove #\Space charlist)))
+  (compact-substrings (substitute #\" #\' (remove #\Space charlist)) nil 0))
 
 ;;(" a b c " : " c d e " , " f " : " g h ") --> ("abc" : "cde" , "f" : "gh")
 (defun compact-substrings(charlist accumulator counter)
