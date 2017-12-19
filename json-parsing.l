@@ -3,7 +3,7 @@
 
 ;;;; json-parsing.l
 
-;; aggiornato al 19/12/17
+;; aggiornato al 17/12/17
 
 ;; defparameter charlist di prova
 ;; (defparameter x '(#\" #\a #\b #\c #\" #\: #\" #\c #\d #\e #\" #\, #\" #\f #\" #\: #\" #\g #\"))
@@ -11,6 +11,7 @@
 ;; (defparameter jsonstring "{\"abc\" : \"cde\", \"f\" : \"g\"}")
 ;; (defparameter x (string-to-list "1, 2, 3, [a, b, c]"))
 ;; (defparameter x (string-to-list "\"nomi\" : [1, 2, 3]"))
+;; (defparameter x "{\"nome\" : {\"abc\" : \"def\"}}")
 
 ;; to-do:
 ;; capire come gestire gli spazi, mettere optional i parametri di parse-members
@@ -60,6 +61,10 @@
 ;; value (da testare)
 (defun is-value (value)
   (cond ((not (null (parse-integer value :junk-allowed t))) value)
+	((and (eq (char value 0) #\{) (eq (char value (- (length value) 1)) #\}))
+         (cons
+          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
+          (parse-members (clean-charlist (string-to-list (string-trim "{}" value))) nil)))
 	((stringp value) value)
 	(T (error "Not a valid value!"))))
   
