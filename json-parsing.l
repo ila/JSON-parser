@@ -5,6 +5,8 @@
 
 ;; aggiornato al 17/12/17
 
+;; OOOOOOO MANCA LA FUNZIONE CHE RIMUOVE SPACE TAB E NEWLINE MI AMMAZZO
+
 ;; defparameter charlist di prova
 ;; (defparameter x '(#\" #\a #\b #\c #\" #\: #\" #\c #\d #\e #\" #\, #\" #\f #\" #\: #\" #\g #\"))
 ;; defparameter jsonstring di prova
