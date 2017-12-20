@@ -11,7 +11,8 @@
 ;; (defparameter jsonstring "{\"abc\" : \"cde\", \"f\" : \"g\"}")
 ;; (defparameter x (string-to-list "1, 2, 3, [a, b, c]"))
 ;; (defparameter x (string-to-list "\"nomi\" : [1, 2, 3]"))
-;; (defparameter x (string-to-list "{\"nome\" : {\"abc\" : \"def\"}"))
+;; (defparameter x "{\"nome\" : {\"abc\" : \"def\"}}")
+;; (json-obj ("nome" "Arthur") ("cognome" "Dent"))
 
 ;; to-do:
 ;; capire come gestire gli spazi, mettere optional i parametri di parse-members
@@ -61,10 +62,10 @@
 ;; value (da testare)
 (defun is-value (value)
   (cond ((not (null (parse-integer value :junk-allowed t))) value)
-	((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
+	((and (eq (char value 0) #\{) (eq (char value (- (length value) 1)) #\}))
          (cons
           'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
-          (parse-members (clean-charlist (string-to-list (string-trim "{}" JSONString))) nil)))
+          (parse-members (clean-charlist (string-to-list (string-trim "{}" value))) nil)))
 	((stringp value) value)
 	(T (error "Not a valid value!"))))
   
@@ -123,3 +124,19 @@
   (if (null l)
       (list element)
     (cons (first l) (cons-end element (rest l)))))
+
+
+;; inverto il json-parse
+;; NB: con equal ci vuole il char, concatenate la stringa
+;; NON FUNZIONA NEMMENO A PAGARLA
+(defun revert-obj (jsonobj jsonstring)
+  (cond ((and ((null jsonobj) (eq (char jsonstring 0) #\{)))
+	 (concatenate 'string (string-right-trim ", " jsonstring) "}"))
+	((null jsonobj) nil)
+	((not (list jsonobj))
+	 (error "Not a valid object!"))
+;	((= (car jsonobj) 'json-array)
+;	 (concatenate 'string jsonstring (revert-array ((cdr jsonobj) ""))))
+	((= (car jsonobj) 'json-obj)
+	 (revert-obj ((cdr jsonobj) (concatenate 'string jsonstring "{"))))
+	(T (revert-obj ((cdr jsonobj) (concatenate 'string (car (car jsonobj)) " : " (cdr (car jsonobj)) ", "))))))
