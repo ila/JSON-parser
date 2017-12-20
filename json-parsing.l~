@@ -29,11 +29,11 @@
         ((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
          (cons
           'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
-          (parse-members (clean-charlist (string-to-list (string-trim "{}" JSONString))) nil))) 
+          (parse-members (clean-charlist (string-to-list JSONString)) nil))) 
         ((and (eq (char JSONString 0) #\[) (eq (char JSONString (- (length JSONString) 1)) #\])) 
          (cons
           'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
-          (parse-array (clean-charlist (string-to-list (string-trim "[]" JSONString))) nil 0))) 
+          (parse-array (clean-charlist (string-to-list JSONString)) nil 0))) 
         (T (error "Syntax error! ")))) ; se non inizia per { e finisce per } errore o non è array
   
 
@@ -56,22 +56,24 @@
 (defun parse-pair (tokenlist)
   (cond ((not (stringp (car tokenlist))) (error "Attribute not a string!"))
 	((not (eq (cadr tokenlist) #\:)) (error "Syntax error")) 
-        (T (list (car tokenlist) (is-value (car (cdr (cdr tokenlist))))))))
+        (T (list (car tokenlist) (is-value (cdr (cdr tokenlist)))))))
 
 
 ;; value (da testare)
 (defun is-value (value)
-  (cond ((not (null (parse-integer value :junk-allowed t))) value)
-	((and (eq (char value 0) #\{) (eq (char value (- (length value) 1)) #\}))
+  (cond ((stringp (car value)) (car value))
+	((and (eq (first value) #\{) (eq (car (last value)) #\}))
          (cons
-          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
-          (parse-members (clean-charlist (string-to-list (string-trim "{}" value))) nil)))
-	((stringp value) value)
+          'json-obj 
+          (parse-members (clean-charlist value) nil)))
+        ((not (null (parse-integer (car value) :junk-allowed t))) (car value))
 	(T (error "Not a valid value!"))))
   
 ;; (parse-integer stringa :junk-allowed t)
 ;; per passare da "123" a 123
 ;; da' nil quando passo stringhe non numeriche
+;; Dige: si ma i numeri sono convertiti in caratteri, non stringhe, quindi li dobbiamo raggruppare prima in una stringa
+;; at least, e poi dovremmo pure usare parse-float, oltre che integer
 
 ;; bugs: stampa un nil di troppo alla fine, not sure a cosa servano secchiellino e counter
 ;; ma funziona con gli array uno dentro l'altro! :D
@@ -103,7 +105,7 @@
 
 
 (defun clean-charlist (charlist) 
-  (compact-substrings (substitute #\" #\' (remove #\Space charlist)) nil 0))
+  (remove-last (cdr (remove #\Space (compact-substrings (substitute #\" #\' charlist) nil 0)))))
 
 ;;(" a b c " : " c d e " , " f " : " g h ") --> ("abc" : "cde" , "f" : "gh")
 (defun compact-substrings (charlist accumulator counter)
@@ -118,6 +120,9 @@
         (T
 	 (error "err"))))
 
+;; ("numero" : 1 . 2 3 4 5) --> ("numero" : "1.2345") WIP
+;;(defun compact-numbers (charlist accumulator counter)
+;;  )
 
 ;; cons-end 
 (defun cons-end (element l)
@@ -125,18 +130,39 @@
       (list element)
     (cons (first l) (cons-end element (rest l)))))
 
+;; remove last elem from list
+(defun remove-last(l)
+    (reverse (cdr (reverse l))))
+
+
 
 ;; inverto il json-parse
 ;; NB: con equal ci vuole il char, concatenate la stringa
-;; NON FUNZIONA NEMMENO A PAGARLA
-(defun revert-obj (jsonobj jsonstring)
-  (cond ((and ((null jsonobj) (eq (char jsonstring 0) #\{)))
-	 (concatenate 'string (string-right-trim ", " jsonstring) "}"))
-	((null jsonobj) nil)
+;; NON FUNZIONA NEMMENO A PAGARLA - 
+;;1) EH GRAZIE CHE NON FUNZIONA CHECKA LE PARENTESI E USA LISPWORKS CHE TE LE COLORA
+;;2) comunque ti ho fixato le parentesi del cond prego
+;;3) non siamo in prolog, jsonstring non la passi come parametro ma la devi creare e tornare te con la funzione
+;;4) ho commentato tutto perchè dà warning ovunque
+#|(defun revert-obj (jsonobj jsonstring)
+  (cond ((and (null jsonobj) (eq (char jsonstring 0) #\{))
+	 (concatenate 'string (string-right-trim ", " jsonstring) "}"))	
+        ((null jsonobj) nil)
 	((not (list jsonobj))
 	 (error "Not a valid object!"))
 ;	((= (car jsonobj) 'json-array)
 ;	 (concatenate 'string jsonstring (revert-array ((cdr jsonobj) ""))))
 	((= (car jsonobj) 'json-obj)
 	 (revert-obj ((cdr jsonobj) (concatenate 'string jsonstring "{"))))
-	(T (revert-obj ((cdr jsonobj) (concatenate 'string (car (car jsonobj)) " : " (cdr (car jsonobj)) ", "))))))
+	(T (revert-obj ((cdr jsonobj) (concatenate 'string (car (car jsonobj)) " : " (cdr (car jsonobj)) ", "))))))|#
+
+
+;; json-load
+(defun json-load (filename)
+  (with-open-file (stream filename
+			  :if-does-not-exst :error)
+    (let ((jsonstring (make-string (file-length stream))))
+      (read-sequence jsonstring stream)
+      jsonstring))
+  (json-parse jsonstring))
+		       
+		     

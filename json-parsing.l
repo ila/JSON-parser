@@ -132,8 +132,7 @@
 
 ;; remove last elem from list
 (defun remove-last(l)
-    (reverse (cdr (reverse l)))
-    )
+    (reverse (cdr (reverse l))))
 
 
 
@@ -144,7 +143,6 @@
 ;;2) comunque ti ho fixato le parentesi del cond prego
 ;;3) non siamo in prolog, jsonstring non la passi come parametro ma la devi creare e tornare te con la funzione
 ;;4) ho commentato tutto perchè dà warning ovunque
-
 #|(defun revert-obj (jsonobj jsonstring)
   (cond ((and (null jsonobj) (eq (char jsonstring 0) #\{))
 	 (concatenate 'string (string-right-trim ", " jsonstring) "}"))	
@@ -156,3 +154,17 @@
 	((= (car jsonobj) 'json-obj)
 	 (revert-obj ((cdr jsonobj) (concatenate 'string jsonstring "{"))))
 	(T (revert-obj ((cdr jsonobj) (concatenate 'string (car (car jsonobj)) " : " (cdr (car jsonobj)) ", "))))))|#
+
+
+;; json-load
+(defun json-load (filename)
+  (json-parse (load-string filename)))
+
+(defun load-string (filename)
+  (with-open-file (in filename
+         :if-does-not-exist :error)
+    (let ((json (make-string (file-length in))))
+      (read-sequence json in)
+      json)))
+		       
+		     
