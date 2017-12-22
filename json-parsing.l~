@@ -21,23 +21,23 @@
 ;; format per levare il maiuscolo non serve a una sega
 
 ;; modifiche: fatto array (manca il caso obj) vanno aggiunti po' di casi di errori
-;; tipo se scrivo greawc4w NON è un oggetto jason e deve capirlo (senza apici, ...)
+;; tipo se scrivo greawc4w NON ï¿½ un oggetto jason e deve capirlo (senza apici, ...)
 
 
 (defun json-parse (JSONString)
-  (cond ((not (stringp JSONString)) (error "Not a string!")) ; se non è una stringa errore
+  (cond ((not (stringp JSONString)) (error "Not a string!")) ; se non ï¿½ una stringa errore
         ((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
          (cons
-          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
+          'json-obj ;; l'ho messo come stringa perchï¿½ non so come cazzo farlo scrivere altrimenti
           (parse-members (clean-charlist (string-to-list JSONString)) nil))) 
         ((and (eq (char JSONString 0) #\[) (eq (char JSONString (- (length JSONString) 1)) #\])) 
          (cons
-          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
+          'json-obj ;; l'ho messo come stringa perchï¿½ non so come cazzo farlo scrivere altrimenti
           (parse-array (clean-charlist (string-to-list JSONString)) nil 0))) 
-        (T (error "Syntax error! ")))) ; se non inizia per { e finisce per } errore o non è array
+        (T (error "Syntax error! ")))) ; se non inizia per { e finisce per } errore o non ï¿½ array
   
 
-;; funziona ma non funziona con array negli oggetti perchè " non sono 4
+;; funziona ma non funziona con array negli oggetti perchï¿½ " non sono 4
 ;; ho provato a spostare la roba tra [] in accumulator e chiamare parse array su quello, 
 ;; ma 4 some reasons non va
 
@@ -142,7 +142,7 @@
 ;;1) EH GRAZIE CHE NON FUNZIONA CHECKA LE PARENTESI E USA LISPWORKS CHE TE LE COLORA
 ;;2) comunque ti ho fixato le parentesi del cond prego
 ;;3) non siamo in prolog, jsonstring non la passi come parametro ma la devi creare e tornare te con la funzione
-;;4) ho commentato tutto perchè dà warning ovunque
+;;4) ho commentato tutto perchï¿½ dï¿½ warning ovunque
 #|(defun revert-obj (jsonobj jsonstring)
   (cond ((and (null jsonobj) (eq (char jsonstring 0) #\{))
 	 (concatenate 'string (string-right-trim ", " jsonstring) "}"))	

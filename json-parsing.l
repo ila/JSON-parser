@@ -25,7 +25,6 @@
 ;; modifiche: fatto array (manca il caso obj) vanno aggiunti po' di casi di errori
 ;; tipo se scrivo greawc4w NON è un oggetto jason e deve capirlo (senza apici, ...)
 
-
 (defun json-parse (JSONString)
   (cond ((not (stringp JSONString)) (error "Not a string!")) ; se non è una stringa errore
         ((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
@@ -63,19 +62,20 @@
 
 ;; value (da testare)
 (defun is-value (value)
-  (cond ((stringp (car value)) (car value))
-	((and (eq (first value) #\{) (eq (car (last value)) #\}))
+  (cond ((and (eq (first value) #\{) (eq (car (last value)) #\}))
          (cons
           'json-obj 
-          (parse-members (clean-charlist value) nil)))
-        ((not (null (parse-integer (car value) :junk-allowed t))) (car value))
+          (parse-members (remove-braces value) nil)))
+        ((stringp (car value)) (car value))
+        ((numberp (car value)) (car value))
 	(T (error "Not a valid value!"))))
   
 ;; (parse-integer stringa :junk-allowed t)
 ;; per passare da "123" a 123
 ;; da' nil quando passo stringhe non numeriche
 ;; Dige: si ma i numeri sono convertiti in caratteri, non stringhe, quindi li dobbiamo raggruppare prima in una stringa
-;; at least, e poi dovremmo pure usare parse-float, oltre che integer
+;; at least, e poi dovremmo pure usare parse-float, oltre che integer ---> edit parse-integer/float nel compact number
+;; e in is-value numberp
 
 ;; bugs: stampa un nil di troppo alla fine, not sure a cosa servano secchiellino e counter
 ;; ma funziona con gli array uno dentro l'altro! :D
@@ -105,13 +105,17 @@
       nil
     (concatenate 'string (string (car charlist)) (list-to-string (cdr charlist)))))
 
-
 (defun clean-charlist (charlist) 
-  (remove-last (cdr (remove #\Space (compact-substrings (substitute #\" #\' charlist) nil 0)))))
+   (remove #\Return (remove #\Tab (remove #\Newline (remove #\Space (compact-substrings 
+                    (compact-numbers (substitute #\" #\' (remove-braces charlist)) nil) nil 0))))))
+
+(defun remove-braces (charlist)
+  (cdr (remove-last charlist)))
 
 ;;(" a b c " : " c d e " , " f " : " g h ") --> ("abc" : "cde" , "f" : "gh")
 (defun compact-substrings (charlist accumulator counter)
-  (cond ((null charlist) (cons (list-to-string accumulator) nil))
+  (cond ((and (null charlist)(null accumulator)) nil)
+        ((null charlist) (cons (list-to-string accumulator) nil))
         ((eq (car charlist) #\")
 	 (compact-substrings (cdr charlist) accumulator (+ 1 counter)))
         ((= counter 0) (cons (car charlist) (compact-substrings (cdr charlist) accumulator counter)))
@@ -122,9 +126,22 @@
         (T
 	 (error "err"))))
 
-;; ("numero" : 1 . 2 3 4 5) --> ("numero" : "1.2345") WIP
-;;(defun compact-numbers (charlist accumulator counter)
-;;  )
+;; ("numero" : 1 . 2 3 4 5) --> ("numero" : 1.2345) WIP numeri 0 -> 48 ..... 9 ->57
+(defun compact-numbers (charlist accumulator)
+  (cond ((and (null charlist)(null accumulator)) nil)
+        ((null charlist) (cons (string-to-number (list-to-string accumulator)) nil))
+        ((and (or (eq (car charlist) #\,) (eq (car charlist) #\}) (eq (car charlist) #\])) (not (null accumulator))) 
+         (cons (string-to-number (list-to-string accumulator)) (compact-numbers (cdr charlist) nil)))
+        ((or (and (> (char-int (car charlist)) 47) (< (char-int (car charlist)) 58)) (eq (car charlist) #\.)) 
+         (compact-numbers (cdr charlist) (cons-end (car charlist) accumulator)))
+        (T (cons (car charlist) (compact-numbers (cdr charlist) accumulator)))))
+
+;;"1.234" --->1.234 
+;;"123" ---> 123  
+(defun string-to-number (string)
+  (if (null (search "." string))
+      (parse-integer string)
+    (parse-float string)))
 
 ;; cons-end 
 (defun cons-end (element l)
