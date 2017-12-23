@@ -131,7 +131,7 @@
   (cond ((and (null charlist)(null accumulator)) nil)
         ((null charlist) (cons (string-to-number (list-to-string accumulator)) nil))
         ((and (or (eq (car charlist) #\,) (eq (car charlist) #\}) (eq (car charlist) #\])) (not (null accumulator))) 
-         (cons (string-to-number (list-to-string accumulator)) (compact-numbers (cdr charlist) nil)))
+         (cons (string-to-number (list-to-string accumulator)) (compact-numbers charlist nil)))
         ((or (and (> (char-int (car charlist)) 47) (< (char-int (car charlist)) 58)) (eq (car charlist) #\.)) 
          (compact-numbers (cdr charlist) (cons-end (car charlist) accumulator)))
         (T (cons (car charlist) (compact-numbers (cdr charlist) accumulator)))))

@@ -5,6 +5,8 @@
 
 ;; aggiornato al 17/12/17
 
+;; OOOOOOO MANCA LA FUNZIONE CHE RIMUOVE SPACE TAB E NEWLINE MI AMMAZZO
+
 ;; defparameter charlist di prova
 ;; (defparameter x '(#\" #\a #\b #\c #\" #\: #\" #\c #\d #\e #\" #\, #\" #\f #\" #\: #\" #\g #\"))
 ;; defparameter jsonstring di prova
@@ -21,23 +23,22 @@
 ;; format per levare il maiuscolo non serve a una sega
 
 ;; modifiche: fatto array (manca il caso obj) vanno aggiunti po' di casi di errori
-;; tipo se scrivo greawc4w NON ï¿½ un oggetto jason e deve capirlo (senza apici, ...)
-
+;; tipo se scrivo greawc4w NON è un oggetto jason e deve capirlo (senza apici, ...)
 
 (defun json-parse (JSONString)
-  (cond ((not (stringp JSONString)) (error "Not a string!")) ; se non ï¿½ una stringa errore
+  (cond ((not (stringp JSONString)) (error "Not a string!")) ; se non è una stringa errore
         ((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
          (cons
-          'json-obj ;; l'ho messo come stringa perchï¿½ non so come cazzo farlo scrivere altrimenti
+          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
           (parse-members (clean-charlist (string-to-list JSONString)) nil))) 
         ((and (eq (char JSONString 0) #\[) (eq (char JSONString (- (length JSONString) 1)) #\])) 
          (cons
-          'json-obj ;; l'ho messo come stringa perchï¿½ non so come cazzo farlo scrivere altrimenti
+          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
           (parse-array (clean-charlist (string-to-list JSONString)) nil 0))) 
-        (T (error "Syntax error! ")))) ; se non inizia per { e finisce per } errore o non ï¿½ array
+        (T (error "Syntax error! ")))) ; se non inizia per { e finisce per } errore o non è array
   
 
-;; funziona ma non funziona con array negli oggetti perchï¿½ " non sono 4
+;; funziona ma non funziona con array negli oggetti perchè " non sono 4
 ;; ho provato a spostare la roba tra [] in accumulator e chiamare parse array su quello, 
 ;; ma 4 some reasons non va
 
@@ -61,19 +62,20 @@
 
 ;; value (da testare)
 (defun is-value (value)
-  (cond ((stringp (car value)) (car value))
-	((and (eq (first value) #\{) (eq (car (last value)) #\}))
+  (cond ((and (eq (first value) #\{) (eq (car (last value)) #\}))
          (cons
           'json-obj 
-          (parse-members (clean-charlist value) nil)))
-        ((not (null (parse-integer (car value) :junk-allowed t))) (car value))
+          (parse-members (remove-braces value) nil)))
+        ((stringp (car value)) (car value))
+        ((numberp (car value)) (car value))
 	(T (error "Not a valid value!"))))
   
 ;; (parse-integer stringa :junk-allowed t)
 ;; per passare da "123" a 123
 ;; da' nil quando passo stringhe non numeriche
 ;; Dige: si ma i numeri sono convertiti in caratteri, non stringhe, quindi li dobbiamo raggruppare prima in una stringa
-;; at least, e poi dovremmo pure usare parse-float, oltre che integer
+;; at least, e poi dovremmo pure usare parse-float, oltre che integer ---> edit parse-integer/float nel compact number
+;; e in is-value numberp
 
 ;; bugs: stampa un nil di troppo alla fine, not sure a cosa servano secchiellino e counter
 ;; ma funziona con gli array uno dentro l'altro! :D
@@ -103,13 +105,17 @@
       nil
     (concatenate 'string (string (car charlist)) (list-to-string (cdr charlist)))))
 
-
 (defun clean-charlist (charlist) 
-  (remove-last (cdr (remove #\Space (compact-substrings (substitute #\" #\' charlist) nil 0)))))
+   (remove #\Return (remove #\Tab (remove #\Newline (remove #\Space (compact-substrings 
+                    (compact-numbers (substitute #\" #\' (remove-braces charlist)) nil) nil 0))))))
+
+(defun remove-braces (charlist)
+  (cdr (remove-last charlist)))
 
 ;;(" a b c " : " c d e " , " f " : " g h ") --> ("abc" : "cde" , "f" : "gh")
 (defun compact-substrings (charlist accumulator counter)
-  (cond ((null charlist) (cons (list-to-string accumulator) nil))
+  (cond ((and (null charlist)(null accumulator)) nil)
+        ((null charlist) (cons (list-to-string accumulator) nil))
         ((eq (car charlist) #\")
 	 (compact-substrings (cdr charlist) accumulator (+ 1 counter)))
         ((= counter 0) (cons (car charlist) (compact-substrings (cdr charlist) accumulator counter)))
@@ -120,9 +126,22 @@
         (T
 	 (error "err"))))
 
-;; ("numero" : 1 . 2 3 4 5) --> ("numero" : "1.2345") WIP
-;;(defun compact-numbers (charlist accumulator counter)
-;;  )
+;; ("numero" : 1 . 2 3 4 5) --> ("numero" : 1.2345) WIP numeri 0 -> 48 ..... 9 ->57
+(defun compact-numbers (charlist accumulator)
+  (cond ((and (null charlist)(null accumulator)) nil)
+        ((null charlist) (cons (string-to-number (list-to-string accumulator)) nil))
+        ((and (or (eq (car charlist) #\,) (eq (car charlist) #\}) (eq (car charlist) #\])) (not (null accumulator))) 
+         (cons (string-to-number (list-to-string accumulator)) (compact-numbers (cdr charlist) nil)))
+        ((or (and (> (char-int (car charlist)) 47) (< (char-int (car charlist)) 58)) (eq (car charlist) #\.)) 
+         (compact-numbers (cdr charlist) (cons-end (car charlist) accumulator)))
+        (T (cons (car charlist) (compact-numbers (cdr charlist) accumulator)))))
+
+;;"1.234" --->1.234 
+;;"123" ---> 123  
+(defun string-to-number (string)
+  (if (null (search "." string))
+      (parse-integer string)
+    (parse-float string)))
 
 ;; cons-end 
 (defun cons-end (element l)
@@ -142,7 +161,7 @@
 ;;1) EH GRAZIE CHE NON FUNZIONA CHECKA LE PARENTESI E USA LISPWORKS CHE TE LE COLORA
 ;;2) comunque ti ho fixato le parentesi del cond prego
 ;;3) non siamo in prolog, jsonstring non la passi come parametro ma la devi creare e tornare te con la funzione
-;;4) ho commentato tutto perchï¿½ dï¿½ warning ovunque
+;;4) ho commentato tutto perchè dà warning ovunque
 #|(defun revert-obj (jsonobj jsonstring)
   (cond ((and (null jsonobj) (eq (char jsonstring 0) #\{))
 	 (concatenate 'string (string-right-trim ", " jsonstring) "}"))	
@@ -158,11 +177,13 @@
 
 ;; json-load
 (defun json-load (filename)
-  (with-open-file (stream filename
-			  :if-does-not-exst :error)
-    (let ((jsonstring (make-string (file-length stream))))
-      (read-sequence jsonstring stream)
-      jsonstring))
-  (json-parse jsonstring))
+  (json-parse (load-string filename)))
+
+(defun load-string (filename)
+  (with-open-file (in filename
+         :if-does-not-exist :error)
+    (let ((json (make-string (file-length in))))
+      (read-sequence json in)
+      json)))
 		       
 		     
