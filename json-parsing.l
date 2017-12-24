@@ -3,15 +3,14 @@
 
 ;;;; json-parsing.l
 
-;; aggiornato al 17/12/17
-
-;; OOOOOOO MANCA LA FUNZIONE CHE RIMUOVE SPACE TAB E NEWLINE MI AMMAZZO
+;; aggiornato al 24/12/17
 
 ;; defparameter charlist di prova
 ;; (defparameter x '(#\" #\a #\b #\c #\" #\: #\" #\c #\d #\e #\" #\, #\" #\f #\" #\: #\" #\g #\"))
 ;; defparameter jsonstring di prova
 ;; (defparameter jsonstring "{\"abc\" : \"cde\", \"f\" : \"g\"}")
 ;; (defparameter x (string-to-list "1, 2, 3, [a, b, c]"))
+;; (defparameter x "{\"name\" : \"Zaphod\",\"heads\" : [[\"Head1\"], [\"Head2\"]]}")
 ;; (defparameter x (string-to-list "\"nomi\" : [1, 2, 3]"))
 ;; (defparameter x "{\"nome\" : {\"abc\" : \"def\"}}")
 ;; (json-obj ("nome" "Arthur") ("cognome" "Dent"))
@@ -25,71 +24,78 @@
 ;; modifiche: fatto array (manca il caso obj) vanno aggiunti po' di casi di errori
 ;; tipo se scrivo greawc4w NON è un oggetto jason e deve capirlo (senza apici, ...)
 
+
+;;ho diviso parse in due perchè dobbiamo pulire la stringa prima di checkarla
+;;in json-parse prendo la stringa, la trasformo in charlist, la faccio pulire e la passo a json-parse-charlist
 (defun json-parse (JSONString)
-  (cond ((not (stringp JSONString)) (error "Not a string!")) ; se non è una stringa errore
-        ((and (eq (char JSONString 0) #\{) (eq (char JSONString (- (length JSONString) 1)) #\}))
-         (cons
-          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
-          (parse-members (clean-charlist (string-to-list JSONString)) nil))) 
-        ((and (eq (char JSONString 0) #\[) (eq (char JSONString (- (length JSONString) 1)) #\])) 
-         (cons
-          'json-obj ;; l'ho messo come stringa perchè non so come cazzo farlo scrivere altrimenti
-          (parse-array (clean-charlist (string-to-list JSONString)) nil 0))) 
+  (if (not (stringp JSONString)) (error "Not a string!")
+      (json-parse-charlist (clean-charlist (string-to-list JSONString)))))
+
+;; in json-parse-charlist prendo la charlist pulita e la parso 
+(defun json-parse-charlist (charlist)
+  (cond ((and (eq (car charlist) #\{) (eq (car (last charlist)) #\}))
+         (cons 'json-obj (parse-members (remove-braces charlist) nil 0 0))) 
+        ((and (eq (car charlist) #\[) (eq (car (last charlist)) #\])) 
+         (cons 'json-array (parse-array (remove-braces charlist) nil 0 0))) 
         (T (error "Syntax error! ")))) ; se non inizia per { e finisce per } errore o non è array
   
+
 
 ;; funziona ma non funziona con array negli oggetti perchè " non sono 4
 ;; ho provato a spostare la roba tra [] in accumulator e chiamare parse array su quello, 
 ;; ma 4 some reasons non va
 
-
 ;;prova parse-members ricorsivo
-(defun parse-members (tokenlist accumulator)
-  (cond ((null tokenlist) (list (parse-pair accumulator)))
-        ((eq (car tokenlist) #\,)
-	 (cons (parse-pair accumulator) (parse-members (cdr tokenlist) nil)))
+;; aggiunto contatore per parentesi : se ho una virgola dentro le parentesi di un sotto oggetto non deve splittarla
+;; nOpen = open parenthesis number, nClosed = closed parenthesis number 
+(defun parse-members (tokenlist accumulator nOpen nClosed)
+  (cond ((and (null tokenlist)(null accumulator)) nil)
+        ((null tokenlist) (list (parse-pair accumulator)))
+        ((and (eq (car tokenlist) #\,) (= nOpen nClosed))
+	 (cons (parse-pair accumulator) (parse-members (cdr tokenlist) nil nOpen nClosed)))
+        ((or (eq (car tokenlist) #\{) (eq (car tokenlist) #\[)) 
+	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator) (incf nOpen) nClosed))
+        ((or (eq (car tokenlist) #\}) (eq (car tokenlist) #\])) 
+	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator) nOpen (incf nClosed)))
         (T
-	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator)))))
+	 (parse-members (cdr tokenlist) (cons-end (car tokenlist) accumulator) nOpen nClosed))))
 
 	 
 
 ;;funziona ma dobbiamo prima checkare i value/attribute prima di ritornarli
 (defun parse-pair (tokenlist)
-  (cond ((not (stringp (car tokenlist))) (error "Attribute not a string!"))
+  (cond ((null tokenlist) nil)
+        ((not (stringp (car tokenlist))) (error "Attribute not a string!"))
 	((not (eq (cadr tokenlist) #\:)) (error "Syntax error")) 
-        (T (list (car tokenlist) (is-value (cdr (cdr tokenlist)))))))
+        (T (list (car tokenlist) (parse-value (cdr (cdr tokenlist)))))))
 
 
 ;; value (da testare)
-(defun is-value (value)
+(defun parse-value (value)
   (cond ((and (eq (first value) #\{) (eq (car (last value)) #\}))
          (cons
           'json-obj 
-          (parse-members (remove-braces value) nil)))
+          (parse-members (remove-braces value) nil 0 0)))
+        ((and (eq (first value) #\[) (eq (car (last value)) #\]))
+         (cons
+          'json-array 
+          (parse-array (remove-braces value) nil 0 0)))
         ((stringp (car value)) (car value))
         ((numberp (car value)) (car value))
 	(T (error "Not a valid value!"))))
   
-;; (parse-integer stringa :junk-allowed t)
-;; per passare da "123" a 123
-;; da' nil quando passo stringhe non numeriche
-;; Dige: si ma i numeri sono convertiti in caratteri, non stringhe, quindi li dobbiamo raggruppare prima in una stringa
-;; at least, e poi dovremmo pure usare parse-float, oltre che integer ---> edit parse-integer/float nel compact number
-;; e in is-value numberp
-
-;; bugs: stampa un nil di troppo alla fine, not sure a cosa servano secchiellino e counter
-;; ma funziona con gli array uno dentro l'altro! :D
-(defun parse-array (array secchiellino counter)
-  (cond ((and (null array) (= counter 1))
-	 (error "Unbalanced parenthesis!"))
-	((null array) nil)
-	((eq (car array) #\[)
-	 (list (append (list 'json-array) (parse-array (cdr array) secchiellino 0))))
-	((eq (car array) #\])
-	  (list (parse-array (cdr array) () 0)))
-	((eq (car array) #\,)
-	 (parse-array (cons #\Space (cdr array)) secchiellino counter))
-	(T (append (list (car array)) (parse-array (cdr array) secchiellino counter)))))
+;;risolto io
+(defun parse-array (tokenlist accumulator nOpen nClosed)
+  (cond ((and (null tokenlist)(null accumulator)) nil)
+        ((null tokenlist) (list (parse-value accumulator)))
+        ((and (eq (car tokenlist) #\,) (= nOpen nClosed))
+	 (cons (parse-value accumulator) (parse-array (cdr tokenlist) nil nOpen nClosed)))
+        ((or (eq (car tokenlist) #\{) (eq (car tokenlist) #\[)) 
+	 (parse-array (cdr tokenlist) (cons-end (car tokenlist) accumulator) (incf nOpen) nClosed))
+        ((or (eq (car tokenlist) #\}) (eq (car tokenlist) #\])) 
+	 (parse-array (cdr tokenlist) (cons-end (car tokenlist) accumulator) nOpen (incf nClosed)))
+        (T
+	 (parse-array (cdr tokenlist) (cons-end (car tokenlist) accumulator) nOpen nClosed))))
 	
 
 ;; funziona
@@ -106,8 +112,8 @@
     (concatenate 'string (string (car charlist)) (list-to-string (cdr charlist)))))
 
 (defun clean-charlist (charlist) 
-   (remove #\Return (remove #\Tab (remove #\Newline (remove #\Space (compact-substrings 
-                    (compact-numbers (substitute #\" #\' (remove-braces charlist)) nil) nil 0))))))
+   (remove #\Return (remove #\Tab (remove #\Newline (remove #\Space (compact-numbers 
+                    (compact-substrings (substitute #\" #\' charlist) nil 0) nil))))))
 
 (defun remove-braces (charlist)
   (cdr (remove-last charlist)))
@@ -132,7 +138,11 @@
         ((null charlist) (cons (string-to-number (list-to-string accumulator)) nil))
         ((and (or (eq (car charlist) #\,) (eq (car charlist) #\}) (eq (car charlist) #\])) (not (null accumulator))) 
          (cons (string-to-number (list-to-string accumulator)) (compact-numbers charlist nil)))
-        ((or (and (> (char-int (car charlist)) 47) (< (char-int (car charlist)) 58)) (eq (car charlist) #\.)) 
+        ((stringp (car charlist)) (cons (car charlist) (compact-numbers (cdr charlist) accumulator))) 
+        ((or 
+          (and (> (char-int (car charlist)) 47) (< (char-int (car charlist)) 58)) 
+          (eq (car charlist) #\.) 
+          (eq (car charlist) #\-)) 
          (compact-numbers (cdr charlist) (cons-end (car charlist) accumulator)))
         (T (cons (car charlist) (compact-numbers (cdr charlist) accumulator)))))
 
