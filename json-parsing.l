@@ -3,7 +3,7 @@
 
 ;;;; json-parsing.l
 
-;; aggiornato al 24/12/17
+;; aggiornato al 25/12/17
 
 ;; defparameter charlist di prova
 ;; (defparameter x '(#\" #\a #\b #\c #\" #\: #\" #\c #\d #\e #\" #\, #\" #\f #\" #\: #\" #\g #\"))
@@ -15,14 +15,13 @@
 ;; (defparameter x "{\"nome\" : {\"abc\" : \"def\"}}")
 ;; (json-obj ("nome" "Arthur") ("cognome" "Dent"))
 
-;; to-do:
-;; capire come gestire gli spazi, mettere optional i parametri di parse-members
-;; just because, array, get, I/O
-;; parse-values
-;; format per levare il maiuscolo non serve a una sega
 
-;; modifiche: fatto array (manca il caso obj) vanno aggiunti po' di casi di errori
-;; tipo se scrivo greawc4w NON è un oggetto jason e deve capirlo (senza apici, ...)
+;; a cosa serve remove braces?
+;; che differenza c'è tra return e newline?
+;; se hai problemi con il parsing dei numeri lmk, io mi concentro sul write che è DOLORE NEL CULO
+;; comunque bravo funziona tutto, pure il caso con apici <3 gg senpan
+;; il get funziona, pure con la lista di "cose"
+;; IL REVERT NON VA ci sono vicina ma non vaaa
 
 
 ;;ho diviso parse in due perchè dobbiamo pulire la stringa prima di checkarla
@@ -160,29 +159,71 @@
     (cons (first l) (cons-end element (rest l)))))
 
 ;; remove last elem from list
-(defun remove-last(l)
+(defun remove-last (l)
     (reverse (cdr (reverse l))))
 
 
 
-;; inverto il json-parse
-;; NB: con equal ci vuole il char, concatenate la stringa
-;; NON FUNZIONA NEMMENO A PAGARLA - 
-;;1) EH GRAZIE CHE NON FUNZIONA CHECKA LE PARENTESI E USA LISPWORKS CHE TE LE COLORA
-;;2) comunque ti ho fixato le parentesi del cond prego
-;;3) non siamo in prolog, jsonstring non la passi come parametro ma la devi creare e tornare te con la funzione
-;;4) ho commentato tutto perchè dà warning ovunque
-#|(defun revert-obj (jsonobj jsonstring)
+;; json-get
+(defun json-get (obj field &rest fields)
+  (cond ((null obj) nil)
+	((and (eq 'json-array (first obj))
+	      (null fields))
+	 (if (listp field)
+	     (search-array (rest obj) (car field))
+	   (search-array (rest obj) field)))
+	((and (eq 'json-obj (first obj)) ;; oggetti negli oggetti
+	      (null fields)
+	      (listp field))
+	 (json-get obj (car field)))
+	((and (eq 'json-obj (first obj))
+	      (null fields))
+	 (car (cdr (assoc field (rest obj) :test #'equal))))
+	((not (null fields))
+	 (get-depth (car (cdr (assoc field (rest obj) :test #'equal))) fields))
+        (T (pprint "Error!"))))
+
+
+(defun search-array (obj position)
+  (cond ((null obj) nil)
+	((= 0 position) (car obj))
+	(T (search-array (cdr obj) (- position 1)))))
+
+
+(defun get-depth (obj fields)
+  (cond ((null obj) nil)
+	((= (length fields) 1) (json-get obj fields))
+	(T (get-depth (search-array (cdr obj) (car fields)) (cdr fields)))))
+	
+
+;; buggatissimo
+(defun revert-obj (jsonobj jsonstring)
   (cond ((and (null jsonobj) (eq (char jsonstring 0) #\{))
 	 (concatenate 'string (string-right-trim ", " jsonstring) "}"))	
         ((null jsonobj) nil)
 	((not (list jsonobj))
 	 (error "Not a valid object!"))
-;	((= (car jsonobj) 'json-array)
-;	 (concatenate 'string jsonstring (revert-array ((cdr jsonobj) ""))))
-	((= (car jsonobj) 'json-obj)
-	 (revert-obj ((cdr jsonobj) (concatenate 'string jsonstring "{"))))
-	(T (revert-obj ((cdr jsonobj) (concatenate 'string (car (car jsonobj)) " : " (cdr (car jsonobj)) ", "))))))|#
+	((eq (car jsonobj) 'json-array)
+	 (concatenate 'string jsonstring (revert-array (cdr jsonobj) "")))
+	((eq (car jsonobj) 'json-obj)
+	 (revert-obj (cdr jsonobj) (concatenate 'string jsonstring "{")))
+	((eq (car (cdr (car jsonobj))) 'json-array)
+	 (revert-obj (cdr jsonobj)
+		     (concatenate 'string (car (car jsonobj)) " : " (revert-array (cdr (cdr (car jsonobj))) ""))))
+	((eq (car (cdr (car jsonobj))) 'json-obj) ;; non entra qui
+	 (revert-obj (cdr jsonobj)
+		     (concatenate 'string (car (car jsonobj)) " : " (revert-obj (cdr (cdr (car jsonobj))) ""))))
+	(T (revert-obj (cdr jsonobj) (concatenate 'string (car (car jsonobj)) " : " (car (cdr (car jsonobj))) ", ")))))
+
+(defun revert-array (jsonarray jsonstring)
+  (cond ((and (null jsonarray) (eq (char jsonstring 0) #\[))
+	 (concatenate 'string (string-right-trim ", " jsonstring) "]"))
+	((eq (car jsonarray) 'json-array)
+	 (concatenate 'string jsonstring (revert-array (cdr jsonarray) "")))
+	((eq (car jsonarray) 'json-obj)
+	 (revert-obj (cdr jsonarray) (concatenate 'string jsonstring "[")))
+	(T (revert-array (cdr jsonarray) (concatenate 'string (car jsonarray) ", ")))))
+
 
 
 ;; json-load
