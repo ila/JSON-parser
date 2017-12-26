@@ -16,10 +16,6 @@
 ;; (json-obj ("nome" "Arthur") ("cognome" "Dent"))
 
 
-;; a cosa serve remove braces?
-;; che differenza c'è tra return e newline?
-;; se hai problemi con il parsing dei numeri lmk, io mi concentro sul write che è DOLORE NEL CULO
-;; comunque bravo funziona tutto, pure il caso con apici <3 gg senpan
 ;; il get funziona, pure con la lista di "cose"
 ;; IL REVERT NON VA ci sono vicina ma non vaaa
 
@@ -180,7 +176,9 @@
 	      (null fields))
 	 (car (cdr (assoc field (rest obj) :test #'equal))))
 	((not (null fields))
-	 (get-depth (car (cdr (assoc field (rest obj) :test #'equal))) fields))
+	 (if (numberp field)
+	     (get-depth (search-array (cdr obj) field) fields)
+	   (get-depth (car (cdr (assoc field (rest obj) :test #'equal))) fields)))
         (T (pprint "Error!"))))
 
 
@@ -193,6 +191,8 @@
 (defun get-depth (obj fields)
   (cond ((null obj) nil)
 	((= (length fields) 1) (json-get obj fields))
+	((stringp (car fields))
+	 (json-get (car (cdr (assoc (car fields) (rest obj) :test #'equal))) (cdr fields)))
 	(T (get-depth (search-array (cdr obj) (car fields)) (cdr fields)))))
 	
 
@@ -200,7 +200,7 @@
 (defun revert-obj (jsonobj jsonstring)
   (cond ((and (null jsonobj) (eq (char jsonstring 0) #\{))
 	 (concatenate 'string (string-right-trim ", " jsonstring) "}"))	
-        ((null jsonobj) nil)
+        ((null jsonobj) jsonstring)
 	((not (list jsonobj))
 	 (error "Not a valid object!"))
 	((eq (car jsonobj) 'json-array)
@@ -213,7 +213,7 @@
 	((eq (car (cdr (car jsonobj))) 'json-obj) ;; non entra qui
 	 (revert-obj (cdr jsonobj)
 		     (concatenate 'string (car (car jsonobj)) " : " (revert-obj (cdr (cdr (car jsonobj))) ""))))
-	(T (revert-obj (cdr jsonobj) (concatenate 'string (car (car jsonobj)) " : " (car (cdr (car jsonobj))) ", ")))))
+	(T (revert-obj (cdr jsonobj) (concatenate 'string jsonstring (car (car jsonobj)) " : " (car (cdr (car jsonobj))) ", ")))))
 
 (defun revert-array (jsonarray jsonstring)
   (cond ((and (null jsonarray) (eq (char jsonstring 0) #\[))
@@ -238,3 +238,21 @@
       json)))
 		       
 		     
+;; flatten a list
+(defun flatten (l)
+  (cond ((null l) l)
+	((atom l) (list l))
+	(T (append (flatten (first l)) (flatten (rest l))))))
+
+
+;; ci riprovo
+;; bugs: non converte un numero in stringa
+#|(defun revert-obj (obj accumulator)
+  (cond ((eq 'json-obj (car obj))
+	 (append '(#\{) (list (second obj)) '(#\Space #\: #\Space) (revert-obj (cdr (cdr obj)) ()) '(#\})))
+	((= (length obj 1))
+	 (append accumulator (list (car obj)) '(#\,)))
+	((= (length obj 1))
+	 (append accumulator (list (car obj)) '(#\,)))|#
+
+	
