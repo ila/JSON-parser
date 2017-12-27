@@ -5,10 +5,7 @@
 
 ;; aggiornato al 25/12/17
 
-;; defparameter charlist di prova
-;; (defparameter x '(#\" #\a #\b #\c #\" #\: #\" #\c #\d #\e #\" #\, #\" #\f #\" #\: #\" #\g #\"))
-;; defparameter jsonstring di prova
-;; (defparameter jsonstring "{\"abc\" : \"cde\", \"f\" : \"g\"}")
+;; (defparameter x (json-parse "{\"abc\" : \"cde\", \"f\" : \"g\"}"))
 ;; (defparameter x (string-to-list "1, 2, 3, [a, b, c]"))
 ;; (defparameter x "{\"name\" : \"Zaphod\",\"heads\" : [[\"Head1\"], [\"Head2\"]]}")
 ;; (defparameter x (string-to-list "\"nomi\" : [1, 2, 3]"))
@@ -196,33 +193,43 @@
 	(T (get-depth (search-array (cdr obj) (car fields)) (cdr fields)))))
 	
 
-;; buggatissimo
+;; casi che funzionano sicuramente: oggetti, oggetti negli oggetti, array
+;; non va: array nell'oggetto e oggetto nell'array (sigh)
+;; array nell'array da testare
 (defun revert-obj (jsonobj jsonstring)
   (cond ((and (null jsonobj) (eq (char jsonstring 0) #\{))
-	 (concatenate 'string (string-right-trim ", " jsonstring) "}"))	
-        ((null jsonobj) jsonstring)
-	((not (list jsonobj))
+	 (car (list (concatenate 'string (string-right-trim ", " jsonstring) "}"))))	
+        ((null jsonobj) nil)
+	((not (listp jsonobj))
 	 (error "Not a valid object!"))
 	((eq (car jsonobj) 'json-array)
-	 (concatenate 'string jsonstring (revert-array (cdr jsonobj) "")))
-	((eq (car jsonobj) 'json-obj)
+	 (revert-array jsonobj ""))
+	((eq (car jsonobj) 'json-obj) ; la prima cosa che fa, leva json-obj
 	 (revert-obj (cdr jsonobj) (concatenate 'string jsonstring "{")))
 	((eq (car (cdr (car jsonobj))) 'json-array)
 	 (revert-obj (cdr jsonobj)
-		     (concatenate 'string (car (car jsonobj)) " : " (revert-array (cdr (cdr (car jsonobj))) ""))))
-	((eq (car (cdr (car jsonobj))) 'json-obj) ;; non entra qui
+		     (concatenate 'string jsonstring "\"" (car (car jsonobj)) "\"" " : " (revert-array (cdr (cdr (car jsonobj))) ""))))
+	((ignore-errors (eq (car (car (cdr (car jsonobj)))) 'json-obj)) ;; questo funziona
 	 (revert-obj (cdr jsonobj)
-		     (concatenate 'string (car (car jsonobj)) " : " (revert-obj (cdr (cdr (car jsonobj))) ""))))
-	(T (revert-obj (cdr jsonobj) (concatenate 'string jsonstring (car (car jsonobj)) " : " (car (cdr (car jsonobj))) ", ")))))
+		     (concatenate 'string jsonstring "\"" (car (car jsonobj)) "\"" " : " (revert-obj (car (cdr (car jsonobj))) ""))))
+	((ignore-errors (eq (car (car (cdr (car jsonobj)))) 'json-array))
+	 (pprint "entra nel posto giusto")
+	 (revert-obj (cdr jsonobj) (concatenate 'string jsonstring "\"" (car (car (jsonobj))) "\"" " : " (revert-array (car (cdr (car jsonobj))) ""))))
+	(T (if (numberp (car (cdr (car jsonobj))))
+	       (revert-obj (cdr jsonobj) (concatenate 'string jsonstring "\"" (car (car jsonobj)) "\"" " : " (write-to-string (car (cdr (car jsonobj)))) ", "))
+	     (revert-obj (cdr jsonobj) (concatenate 'string jsonstring "\"" (car (car jsonobj)) "\"" " : " "\"" (car (cdr (car jsonobj))) "\"" ", "))))))
 
 (defun revert-array (jsonarray jsonstring)
   (cond ((and (null jsonarray) (eq (char jsonstring 0) #\[))
-	 (concatenate 'string (string-right-trim ", " jsonstring) "]"))
+	 (car (list (concatenate 'string (string-right-trim ", " jsonstring) "]"))))
+	((null jsonarray) nil)
 	((eq (car jsonarray) 'json-array)
-	 (concatenate 'string jsonstring (revert-array (cdr jsonarray) "")))
-	((eq (car jsonarray) 'json-obj)
-	 (revert-obj (cdr jsonarray) (concatenate 'string jsonstring "[")))
-	(T (revert-array (cdr jsonarray) (concatenate 'string (car jsonarray) ", ")))))
+	 (revert-array (cdr jsonarray) (concatenate 'string jsonstring "[")))
+	((ignore-errors (eq (car (car (cdr (car jsonarray)))) 'json-obj)) ;; fixare questo
+	 (revert-obj (cdr jsonarray) jsonstring))
+	(T (if (numberp (car jsonarray))
+	       (revert-array (cdr jsonarray) (concatenate 'string jsonstring (write-to-string (car jsonarray)) ", "))
+	     (revert-array (cdr jsonarray) (concatenate 'string jsonstring "\"" (car jsonarray) "\"" ", "))))))
 
 
 
@@ -237,22 +244,4 @@
       (read-sequence json in)
       json)))
 		       
-		     
-;; flatten a list
-(defun flatten (l)
-  (cond ((null l) l)
-	((atom l) (list l))
-	(T (append (flatten (first l)) (flatten (rest l))))))
 
-
-;; ci riprovo
-;; bugs: non converte un numero in stringa
-#|(defun revert-obj (obj accumulator)
-  (cond ((eq 'json-obj (car obj))
-	 (append '(#\{) (list (second obj)) '(#\Space #\: #\Space) (revert-obj (cdr (cdr obj)) ()) '(#\})))
-	((= (length obj 1))
-	 (append accumulator (list (car obj)) '(#\,)))
-	((= (length obj 1))
-	 (append accumulator (list (car obj)) '(#\,)))|#
-
-	
