@@ -11,13 +11,6 @@
 ;; aggiungere commenti fatti decentemente lol
 ;; vedere che cazzo combina il load con il tab
 
-;; ERRORE ERRORE ERRORE
-;; se passo (defparameter z (json-parse "{\"a\": [1, 2], \"b\": [\"c\" : [4, 5, [6, 7]]]}"))
-;; restituisce (JSON-OBJ ("a" (JSON-ARRAY 1 2)) ("b" (JSON-ARRAY "c")))
-;; che non va bene, dovrebbe dare errore perchè ci sono : nell'array
-;; NON SO COME INDENTARE UNA ROBA CHE HAI SCRITTO PLS PENSACI TU
-
-
 ;;;; json-parsing.l
 
 
@@ -35,7 +28,7 @@
          (cons 'json-obj (parse-members (remove-braces charlist) nil 0 0))) 
         ((and (eq (car charlist) #\[) (eq (car (last charlist)) #\])) 
          (cons 'json-array (parse-array (remove-braces charlist) nil 0 0))) 
-        (T (error "Syntax error! ")))) ; se non è tra {} errore o non è array
+        (T (error "Syntax error! Unbalanced braces")))) ; se non è tra {} errore o non è array
   
 
 ;; aggiunto contatore per parentesi
@@ -63,7 +56,7 @@
 (defun parse-pair (tokenlist)
   (cond ((null tokenlist) nil)
         ((not (stringp (car tokenlist))) (error "Attribute not a string!"))
-	((not (eq (cadr tokenlist) #\:)) (error "Syntax error")) 
+	((not (eq (cadr tokenlist) #\:)) (error "Not a pair!")) 
         (T (list (car tokenlist) (parse-value (cdr (cdr tokenlist)))))))
 
 
@@ -96,9 +89,11 @@
 	 (parse-array (cdr tokenlist)
 		      (cons-end (car tokenlist) accumulator)
 		      nOpen (incf nClosed)))
-        (T (parse-array (cdr tokenlist)
-			(cons-end (car tokenlist) accumulator)
-			nOpen nClosed))))
+        ((or (null accumulator) (not (= nOpen nClosed)))
+         (parse-array (cdr tokenlist)
+                      (cons-end (car tokenlist) accumulator)
+                      nOpen nClosed))
+        (T (error "Array syntax error!"))))
 	
 
 (defun string-to-list (JSONString)
@@ -114,10 +109,16 @@
 		 (list-to-string (cdr charlist)))))
 
 
-;; HELP NON SO COME INDENTARLA
 (defun clean-charlist (charlist) 
-   (remove #\Return (remove #\Tab (remove #\Newline (remove #\Space (compact-numbers 
-                    (compact-substrings (substitute #\" #\' charlist) nil 0) nil))))))
+   (remove #\Return 
+           (remove #\Tab 
+                   (remove #\Newline 
+                           (remove #\Space 
+                                   (compact-numbers 
+                                    (compact-substrings 
+                                     (substitute #\" #\' charlist)
+                                     nil 0)
+                                    nil))))))
 
 
 (defun remove-braces (charlist)
