@@ -11,14 +11,11 @@
 ;; aggiungere commenti fatti decentemente lol
 ;; vedere che cazzo combina il load con il tab
 
-;; NB: se passo (defparameter z (json-parse "{\"a\": [1, 2], \"b\": [\"c\" : [4, 5, [6, 7]]]}"))
+;; ERRORE ERRORE ERRORE
+;; se passo (defparameter z (json-parse "{\"a\": [1, 2], \"b\": [\"c\" : [4, 5, [6, 7]]]}"))
 ;; restituisce (JSON-OBJ ("a" (JSON-ARRAY 1 2)) ("b" (JSON-ARRAY "c")))
 ;; che non va bene, dovrebbe dare errore perchè ci sono : nell'array
-
-;; il json-load sembra funzionare, non ho idea perchè si rompa con la stringa di Bianca
-;; da' questo Error: No integer present in "-" from 0 to 1, parse-integer expected one.
-;; probabilmente perchè hai gestito i numeri negativi in modo strano e rompe tutto
-;; niente escape nei file, funziona senza
+;; NON SO COME INDENTARE UNA ROBA CHE HAI SCRITTO PLS PENSACI TU
 
 
 ;;;; json-parsing.l
