@@ -6,11 +6,6 @@
 ;; (defparameter x (json-parse ("{\"nome\" : {\"abc\" : \"def\"}}"))
 
 
-;; piccoli bugs da sistemare: testare un po' di casi limite,
-;; aggiungere exception handling, sistemare l'indentazione
-;; aggiungere commenti fatti decentemente lol
-;; vedere che cazzo combina il load con il tab
-
 ;;;; json-parsing.l
 
 
@@ -28,7 +23,8 @@
          (cons 'json-obj (parse-members (remove-braces charlist) nil 0 0))) 
         ((and (eq (car charlist) #\[) (eq (car (last charlist)) #\])) 
          (cons 'json-array (parse-array (remove-braces charlist) nil 0 0))) 
-        (T (error "Syntax error! Unbalanced braces")))) ; se non è tra {} errore o non è array
+        (T (error "Syntax error! Unbalanced braces"))))
+					; se non è tra {} errore o non è array
   
 
 ;; aggiunto contatore per parentesi
@@ -295,17 +291,18 @@
 					"\"" (car jsonarray) "\"" ", "))))))
 
 
-
 ;; json-load
 (defun json-load (filename)
-  (json-parse (load-string filename)))
-
-(defun load-string (filename)
   (with-open-file (in filename
-         :if-does-not-exist :error)
-    (let ((json (make-string (file-length in))))
-      (read-sequence json in)
-      json)))
+		      :if-does-not-exist :error
+		      :direction :input)
+  (json-parse (load-char in))))
+
+
+(defun load-char (inputstream)
+  (let ((json (read-char inputstream nil 'eof)))
+    (if (eq json 'eof) ""
+	 (string-append json (load-char inputstream)))))
 
 
 ;; json-write
