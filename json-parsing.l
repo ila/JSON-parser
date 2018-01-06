@@ -161,20 +161,21 @@
         ((stringp (car charlist))
 	 (cons (car charlist)
 	       (compact-numbers (cdr charlist) accumulator))) 
-        ((or (and (> (char-int (car charlist)) 47)
-		  (< (char-int (car charlist)) 58)) 
-	     (eq (car charlist) #\.) 
-	     (eq (car charlist) #\-)) 
+        ((is-number-component (car charlist)) 
          (compact-numbers (cdr charlist)
 			  (cons-end (car charlist) accumulator)))
-        (T (cons (car charlist)
-		 (compact-numbers (cdr charlist) accumulator)))))
+        ((or 
+          (null accumulator) 
+          (null (is-number-component (cadr charlist))))
+         (cons (car charlist)
+               (compact-numbers (cdr charlist) accumulator)))
+        (T (error "Number syntax error"))))
 
 
 ;;"1.234" --->1.234 
 ;;"123" ---> 123  
 (defun string-to-number (string)
-  (if (null (search "." string))
+  (if (null (find #\. string))
       (parse-integer string)
     (parse-float string)))
 
@@ -184,6 +185,13 @@
   (if (null l)
       (list element)
     (cons (first l) (cons-end element (rest l)))))
+
+;;check if char is a number component
+(defun is-number-component (element)
+  (or (and (> (char-int element) 47)
+              (< (char-int element) 58)) 
+         (eq element #\.) 
+         (eq element #\-)))
 
 
 ;; remove last element from list
