@@ -16,15 +16,20 @@
 
 json_parse({}, json_obj([])) :- !.
 
-json_parse(JSONAtom, json_obj(ParsedObject)) :-
-    atom(JSONAtom),
-    atom_string(JSONAtom, JSONString),
+json_parse(JSONString, json_obj(ParsedObject)) :-
+	string(JSONString),
     string_chars(JSONString, Chars),
     fix_string(Chars, FixedChars),
     string_chars(RealJSONString, FixedChars),
     catch(term_string(JSON, RealJSONString), _, false),
     JSON =.. [{}, Object],
     json_obj([Object], ParsedObject),
+    !.
+
+json_parse(JSONAtom, ParsedJSON) :-
+    atom(JSONAtom),
+    atom_string(JSONAtom, JSONString),
+    json_parse(JSONString, ParsedJSON),
     !.
 
 json_parse(JSON, json_obj(ParsedObject)) :-
@@ -35,13 +40,18 @@ json_parse(JSON, json_obj(ParsedObject)) :-
 
 %%% array
 
-json_parse(ArrayAtom, json_array(ParsedArray)) :-
-    atom(ArrayAtom),
-    atom_string(ArrayAtom, ArrayString),
+json_parse(ArrayString, json_array(ParsedArray)) :-
+	string(ArrayString),
     catch(term_string(Array, ArrayString), _, false),
     json_array(Array, ParsedArray),
     !.
 
+json_parse(ArrayAtom, ParsedJSON) :-
+    atom(ArrayAtom),
+    atom_string(ArrayAtom, ArrayString),
+    json_parse(ArrayString, ParsedJSON),
+    !.
+	
 json_parse(Array, json_array(ParsedArray)) :-
     json_array(Array, ParsedArray),
     !.
