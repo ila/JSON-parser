@@ -1,10 +1,6 @@
 ;;;; Battiston Ilaria 816339
 ;;;; Di Gennaro Luca 820612
 
-;; (defparameter x (json-parse "{\"abc\" : \"cde\", \"f\" : \"g\"}"))
-;; (defparameter x (json-parse "{\"name\" : \"Zaphod\",\"heads\" : [[\"Head1\"], [\"Head2\"]]}"))
-;; (defparameter x (json-parse ("{\"nome\" : {\"abc\" : \"def\"}}"))
-
 
 ;;;; json-parsing.l
 
@@ -22,7 +18,7 @@
   (cond ((and (eq (car charlist) #\{) (eq (car (last charlist)) #\}))
          (cons 'json-obj (parse-members (remove-braces charlist) nil 0 0))) 
         ((and (eq (car charlist) #\[) (eq (car (last charlist)) #\])) 
-         (cons 'json-array (parse-array (remove-braces charlist) nil 0 0))) 
+         (cons 'json-array (parse-array (remove-braces charlist) nil 0 0)))
         (T (error "Syntax error! Unbalanced braces"))))
 					; se non è tra {} errore o non è array
   
@@ -31,8 +27,9 @@
 ;; se ho una virgola dentro un sotto oggetto non deve splittarla
 ;; nOpen = open parenthesis number, nClosed = closed parenthesis number
 (defun parse-members (tokenlist accumulator nOpen nClosed)
-  (cond ((and (null tokenlist)(null accumulator)) nil)
+  (cond ((and (null tokenlist) (null accumulator)) nil)
         ((null tokenlist) (list (parse-pair accumulator)))
+	((eq (car (last tokenlist)) #\,) (error "Missing argument!"))
         ((and (eq (car tokenlist) #\,) (= nOpen nClosed))
 	 (cons (parse-pair accumulator)
 	       (parse-members (cdr tokenlist) nil nOpen nClosed)))
@@ -65,6 +62,7 @@
          (cons
           'json-array 
           (parse-array (remove-braces value) nil 0 0)))
+	((not (eq (cdr value) nil)) (error "Not a valid value!"))
         ((stringp (car value)) (car value))
         ((numberp (car value)) (car value))
 	(T (error "Not a valid value!"))))
@@ -72,7 +70,8 @@
 
 ;; parse-array
 (defun parse-array (tokenlist accumulator nOpen nClosed)
-  (cond ((and (null tokenlist)(null accumulator)) nil)
+  (cond ((eq (car (last tokenlist)) #\,) (error "Missing argument!"))
+	((and (null tokenlist) (null accumulator)) nil)
         ((null tokenlist) (list (parse-value accumulator)))
         ((and (eq (car tokenlist) #\,) (= nOpen nClosed))
 	 (cons (parse-value accumulator)
@@ -106,15 +105,15 @@
 
 
 (defun clean-charlist (charlist) 
-   (remove #\Return 
-           (remove #\Tab 
-                   (remove #\Newline 
-                           (remove #\Space 
-                                   (compact-numbers 
-                                    (compact-substrings 
-                                     (substitute #\" #\' charlist)
-                                     nil 0)
-                                    nil))))))
+  (remove #\Return 
+	  (remove #\Tab 
+		  (remove #\Newline 
+			  (remove #\Space 
+				  (compact-numbers 
+				   (compact-substrings 
+				    (substitute #\" #\' charlist)
+				    nil 0)
+				   nil))))))
 
 
 (defun remove-braces (charlist)
@@ -207,7 +206,7 @@
 	 (if (listp field)
 	     (search-array (rest obj) (car field))
 	   (search-array (rest obj) field)))
-	((and (eq 'json-obj (first obj)) ;; oggetti negli oggetti
+	((and (eq 'json-obj (first obj)) ; oggetti negli oggetti
 	      (null fields)
 	      (listp field))
 	 (json-get obj (car field)))
@@ -215,11 +214,17 @@
 	      (null fields))
 	 (car (cdr (assoc field (rest obj) :test #'equal))))
 	((not (null fields))
-	 (if (numberp field)
-	     (get-depth (search-array (cdr obj) field) fields)
-	   (get-depth (car (cdr (assoc field (rest obj) :test #'equal)))
-		      fields)))
-        (T (pprint "Error!"))))
+	 (cond ((listp (car fields))
+		(if (numberp field)
+		     (get-depth (search-array (cdr obj) field) (car fields))
+		   (get-depth (car (cdr (assoc field (rest obj) :test #'equal)))
+			      (car fields))))
+					; fields vengono passati a profondità 2
+	       (T (if (numberp field)
+		      (get-depth (search-array (cdr obj) field) fields)
+		    (get-depth (car (cdr (assoc field (rest obj) :test #'equal)))
+			       fields)))))
+	(T (pprint "Error!"))))
 
 
 (defun search-array (obj position)
@@ -234,7 +239,8 @@
 	((stringp (car fields))
 	 (json-get (car (cdr
 			 (assoc (car fields) (rest obj) :test #'equal)))
-		   (cdr fields)))
+		   (second fields)
+		   (cdr (cdr fields))))
 	(T (get-depth (search-array (cdr obj) (car fields)) (cdr fields)))))
 	
 
@@ -320,4 +326,6 @@
 		       :if-exists :supersede
 		       :if-does-not-exist :create)
 		  (format out (revert-obj jsonobj ""))))
-		       
+
+
+;;;; end of file -- json-parsing.l
