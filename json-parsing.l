@@ -190,7 +190,8 @@
   (or (and (> (char-int element) 47)
               (< (char-int element) 58)) 
          (eq element #\.) 
-         (eq element #\-)))
+         (eq element #\-)
+	 (eq element #\+)))
 
 
 ;; remove last element from list

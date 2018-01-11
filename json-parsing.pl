@@ -83,6 +83,7 @@ json_array([Value | MoreElements], [ParsedValue | ParsedElements]) :-
 
 
 %%% json_member(Members)
+
 json_member(Member, (ParsedAttribute, ParsedValue)) :-
     Member =.. [':', Attribute, Value],
     json_pair(Attribute, Value, ParsedAttribute, ParsedValue),
