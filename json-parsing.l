@@ -200,8 +200,9 @@
 
 
 ;; json-get
-(defun json-get (obj field &rest fields)
-  (cond ((null obj) nil)
+(defun json-get (obj &optional field &rest fields)
+  (cond ((null field) obj)
+	((null obj) nil)
 	((and (eq 'json-array (first obj))
 	      (null fields))
 	 (if (listp field)
