@@ -102,7 +102,7 @@
 
 
 (defun list-to-string (charlist)
-  (if (null charlist) nil
+  (if (null charlist) ""
     (concatenate 'string
 		 (string (car charlist))
 		 (list-to-string (cdr charlist)))))
