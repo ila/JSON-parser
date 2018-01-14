@@ -45,7 +45,9 @@
 			  (cons-end (car tokenlist) accumulator)
 			  nOpen nClosed))))
 
-	 
+
+;; parse-pair controlla che attribute sia una stringa
+;; e chiama parse-value sul value
 (defun parse-pair (tokenlist)
   (cond ((null tokenlist) nil)
         ((not (stringp (car tokenlist))) (error "Attribute not a string!"))
@@ -53,6 +55,8 @@
         (T (list (car tokenlist) (parse-value (cdr (cdr tokenlist)))))))
 
 
+;; value possono essere numeri, stringhe, oggetti JSON
+;; se trova un oggetto richiama json-parse
 (defun parse-value (value)
   (cond ((and (eq (first value) #\{) (eq (car (last value)) #\}))
          (cons
@@ -104,6 +108,7 @@
 		 (list-to-string (cdr charlist)))))
 
 
+;; rimuove i caratteri che causano problemi al parse
 (defun clean-charlist (charlist) 
   (remove #\Return 
 	  (remove #\Tab 
@@ -120,7 +125,8 @@
   (cdr (remove-last charlist)))
 
 
-;;(" a b c " : " c d e " , " f " : " g h ") --> ("abc" : "cde" , "f" : "gh")
+;; rimuove gli spazi in eccesso e trasforma i caratteri di
+;; attributo/valore in stringhe
 (defun compact-substrings (charlist accumulator counter)
   (cond ((and (null charlist) (null accumulator)) nil)
         ((null charlist) (cons (list-to-string accumulator) nil))
@@ -179,13 +185,15 @@
     (parse-float string)))
 
 
-;; cons-end 
+;; cons-end
+;; mette l'elemento alla fine della lista
 (defun cons-end (element l)
   (if (null l)
       (list element)
     (cons (first l) (cons-end element (rest l)))))
 
-;;check if char is a number component
+
+;; controlla se il carattere è un numero
 (defun is-number-component (element)
   (or (and (> (char-int element) 47)
               (< (char-int element) 58)) 
@@ -194,7 +202,7 @@
 	 (eq element #\+)))
 
 
-;; remove last element from list
+;; rimuove l'ultimo elemento dalla lista
 (defun remove-last (l)
     (reverse (cdr (reverse l))))
 
@@ -203,7 +211,7 @@
 (defun json-get (obj &optional field &rest fields)
   (cond ((null field) obj)
 	((null obj) nil)
-	((and (eq 'json-array (first obj))
+	((and (eq 'json-array (first obj)) ; profondità 1
 	      (null fields))
 	 (if (listp field)
 	     (search-array (rest obj) (car field))
@@ -217,7 +225,7 @@
 	 (car (cdr (assoc field (rest obj) :test #'equal))))
 	((not (null fields))
 	 (cond ((listp (car fields))
-		(if (numberp field)
+		(if (numberp field) ; ricerca per indice
 		     (get-depth (search-array (cdr obj) field) (car fields))
 		   (get-depth (car (cdr (assoc field (rest obj) :test #'equal)))
 			      (car fields))))
@@ -229,12 +237,14 @@
 	(T (pprint "Error!"))))
 
 
+;; ricerca per indice nell'array
 (defun search-array (obj position)
   (cond ((null obj) nil)
 	((= 0 position) (car obj))
 	(T (search-array (cdr obj) (- position 1)))))
 
 
+;; entra al livello successivo di profondità
 (defun get-depth (obj fields)
   (cond ((null obj) nil)
 	((= (length fields) 1) (json-get obj fields))
@@ -246,6 +256,7 @@
 	(T (get-depth (search-array (cdr obj) (car fields)) (cdr fields)))))
 	
 
+;; per json-write, trasforma la cons in una stringa tramite concatenate
 (defun revert-obj (jsonobj jsonstring)
   (cond ((and (null jsonobj) (eq (char jsonstring 0) #\{))
 	 (car (list (concatenate 'string
@@ -315,10 +326,12 @@
   (json-parse (load-char in))))
 
 
+;; legge il file carattere per carattere
 (defun load-char (inputstream)
   (let ((json (read-char inputstream nil 'eof)))
     (if (eq json 'eof) ""
-	 (string-append json (load-char inputstream)))))
+      (string-append json (load-char inputstream)))))
+					; trasforma i caratteri in stringa
 
 
 ;; json-write
