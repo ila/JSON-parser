@@ -4,10 +4,6 @@
 %%%% -*- Mode: Prolog -*-
 %%%% json-parsing.pl
 
-%%% NOTA: PARSE CON {} FUNZIONA, NON DOVREBBE 
-
-%%% aggiornato al 5/12/17
-
 %%% json_parse(JSONString, Object).
 %%% vero se una JSONString (una stringa SWI Prolog o un atomo Prolog)
 %%% può venire scorporata come stringa, numero, json_obj o json_array
